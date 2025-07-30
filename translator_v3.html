@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OpenAI TTS Demo (CNN-like style)</title>
+<title>OpenAI Text Formatter with Modes + Spinner</title>
 <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -33,7 +33,7 @@
     padding: 10px; display: flex; gap: 10px; align-items: center;
     position: sticky; top: 0; z-index: 1;
   }
-  .toolbar button {
+  .toolbar button, .toolbar select {
     background: white; color: #4285F4; border: none; padding: 6px 10px;
     cursor: pointer; border-radius: 4px;
   }
@@ -43,28 +43,38 @@
   textarea {
     flex: 1; resize: none;
     font-family: 'Lato', sans-serif;
-    font-size: 16px;
-    line-height: 1.6;
+    font-size: 16px; line-height: 1.6;
     padding: 10px;
     background: var(--preview-bg);
-    color: #333; /* softer grey text */
+    color: #333;
     border: none; outline: none;
   }
   .preview {
-    flex: 1; padding: 10px;
-    background: var(--preview-bg);
+    flex: 1; padding: 10px; background: var(--preview-bg);
     overflow-y: auto;
-    font-family: 'Lato', sans-serif;
-    font-size: 16px;
-    line-height: 1.6;
+    font-size: 16px; line-height: 1.6;
+    position: relative;
   }
   .sentence {
-    display: block; margin-bottom: 16px; /* spacing between paragraphs */
-    cursor: pointer; padding: 2px 4px;
-    border-radius: 3px;
+    display: block; margin-bottom: 16px;
+    cursor: pointer; padding: 2px 4px; border-radius: 3px;
   }
   .sentence:hover { background: var(--hover); }
   .active { background: var(--highlight); }
+  .spinner {
+    position: absolute; top: 50%; left: 50%;
+    width: 40px; height: 40px;
+    border: 4px solid #ccc;
+    border-top: 4px solid #4285F4;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    transform: translate(-50%, -50%);
+    display: none;
+    z-index: 2;
+  }
+  @keyframes spin {
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+  }
 </style>
 </head>
 <body>
@@ -72,30 +82,29 @@
     <button onclick="playPrevious()">⏮ Prev</button>
     <button onclick="playCurrent()">▶️ Current</button>
     <button onclick="playNext()">⏭ Next</button>
+    <select id="modeSelect" onchange="updatePreview()"> 
+      <option value="plain">Plain‑vanilla mode</option>
+      <option value="combined">Combined mode</option>
+    </select>
     <button onclick="resetApiKey()">🔑 API Key</button>
     <button onclick="toggleTheme()">🌓 Toggle Theme</button>
   </div>
   <div class="container">
     <textarea id="inputText" placeholder="Type or paste text here..."></textarea>
-    <div id="preview" class="preview"></div>
+    <div id="preview" class="preview">
+      <div class="spinner" id="spinner"></div>
+    </div>
   </div>
 <script>
 let currentIndex = 0;
 let sentences = [];
-let cache = {};
+let cache = {}; 
+let combinedTextCache = "";
 
 document.addEventListener('DOMContentLoaded', async () => {
   await checkApiKey();
   const textarea = document.getElementById('inputText');
-  textarea.addEventListener('input', formatParagraphs);
-  textarea.addEventListener('paste', () => {
-    setTimeout(() => {
-      let text = textarea.value.replace(/\s+/g, ' ');
-      let splitted = text.split(/(?<=[.?!。！？])/).map(s => s.trim()).filter(Boolean);
-      textarea.value = splitted.join('\n\n');
-      formatParagraphs();
-    }, 50);
-  });
+  textarea.addEventListener('input', updatePreview);
   if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');
 });
 
@@ -118,31 +127,89 @@ function toggleTheme() {
   localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
 }
 
-function formatParagraphs() {
-  const text = document.getElementById('inputText').value;
-  let paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
-  if (paragraphs.length <= 1) {
-    paragraphs = [text.replace(/\n+/g, ' ').trim()];
+async function updatePreview() {
+  const mode = document.getElementById('modeSelect').value;
+  const text = document.getElementById('inputText').value.trim();
+  if (mode === 'plain') {
+    showPlain(text);
+  } else if (mode === 'combined') {
+    await showCombined(text);
   }
-  sentences = paragraphs;
-  updatePreviewDisplay();
 }
 
-function updatePreviewDisplay() {
+function showPlain(text) {
+  const paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  sentences = paragraphs;
   const preview = document.getElementById('preview');
-  preview.innerHTML = sentences.map((s, idx) =>
-    `<span class="sentence" data-idx="${idx}">${s}</span>`
-  ).join('');
-  preview.querySelectorAll('.sentence').forEach(span => {
+  preview.innerHTML = paragraphs.map((p, idx) =>
+    `<span class="sentence" data-idx="${idx}">${p}</span>`
+  ).join('') + '<div class="spinner" id="spinner"></div>';
+  attachClickEvents();
+  cache = {};
+  currentIndex = 0;
+  highlightCurrent();
+}
+
+async function showCombined(text) {
+  if (!text) return;
+  const spinner = document.getElementById('spinner');
+  spinner.style.display = 'block';
+  if (combinedTextCache && combinedTextCache.original === text) {
+    displayCombined(combinedTextCache.combined);
+    spinner.style.display = 'none';
+    return;
+  }
+  const apiKey = localStorage.getItem('openai_api_key');
+  if (!apiKey) { spinner.style.display = 'none'; return alert("Missing API key."); }
+  try {
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": "Bearer " + apiKey,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        model: "gpt-4o",
+        messages: [
+          { role: "system", content: "You are a helpful text editor." },
+          { role: "user", content: `Please merge and format this text into logical paragraphs:\n\n${text}` }
+        ],
+        temperature: 0.3
+      })
+    });
+    const data = await res.json();
+    const combined = data.choices[0].message.content.trim();
+    combinedTextCache = { original: text, combined };
+    displayCombined(combined);
+  } catch (e) {
+    console.error(e);
+    alert("Failed to get combined text.");
+  } finally {
+    spinner.style.display = 'none';
+  }
+}
+
+function displayCombined(text) {
+  const paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  sentences = paragraphs;
+  const preview = document.getElementById('preview');
+  preview.innerHTML = paragraphs.map((p, idx) =>
+    `<span class="sentence" data-idx="${idx}">${p}</span>`
+  ).join('') + '<div class="spinner" id="spinner"></div>';
+  attachClickEvents();
+  cache = {};
+  currentIndex = 0;
+  highlightCurrent();
+}
+
+function attachClickEvents() {
+  document.querySelectorAll('.sentence').forEach(span => {
     span.addEventListener('click', () => {
       currentIndex = parseInt(span.dataset.idx);
       highlightCurrent();
       playSentence(currentIndex);
     });
   });
-  cache = {};
-  currentIndex = 0;
-  highlightCurrent();
 }
 
 function highlightCurrent() {
@@ -174,11 +241,6 @@ async function playSentence(idx) {
           input: text
         })
       });
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        alert("OpenAI Error: " + (errorData.error?.message || res.statusText));
-        return;
-      }
       const arrayBuffer = await res.arrayBuffer();
       const blob = new Blob([arrayBuffer], { type: "audio/mpeg" });
       const url = URL.createObjectURL(blob);
