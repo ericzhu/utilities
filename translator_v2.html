@@ -12,7 +12,6 @@
     --button-hover: #357ae8;
     --input-bg: #ffffff;
     --font-size: 16px;
-    --font-family: Arial, sans-serif;
   }
   [data-theme="dark"] {
     --bg-color: #1e1e1e;
@@ -22,71 +21,79 @@
     --input-bg: #2e2e2e;
   }
   body {
+    margin: 0;
+    padding: 0;
     background-color: var(--bg-color);
     color: var(--text-color);
-    font-family: var(--font-family);
+    font-family: Arial, sans-serif;
     display: flex;
     flex-direction: column;
-    align-items: center;
-    padding: 20px;
-    transition: background-color 0.3s, color 0.3s;
+    height: 100vh;
   }
-  textarea {
-    width: 75%;
-    max-width: 800px;
-    min-width: 250px;
-    height: 200px;
-    margin-bottom: 10px;
-    padding: 10px;
-    font-size: var(--font-size);
-    background-color: var(--input-bg);
-    color: var(--text-color);
-    border: 1px solid #ccc;
-    box-sizing: border-box;
-  }
-  .controls {
-    width: 75%;
-    max-width: 800px;
+  .toolbar {
+    position: sticky;
+    top: 0;
+    background-color: var(--bg-color);
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 10px;
-    margin-bottom: 10px;
-  }
-  .preview {
-    width: 75%;
-    max-width: 800px;
-    background-color: var(--input-bg);
-    border: 1px dashed #888;
+    gap: 8px;
     padding: 10px;
-    white-space: pre-wrap;
-    margin-top: 10px;
-    color: var(--text-color);
-    font-size: var(--font-size);
+    border-bottom: 1px solid #ccc;
+    z-index: 10;
   }
   select, button {
-    padding: 8px 12px;
+    padding: 6px 10px;
     font-size: 14px;
     background-color: var(--input-bg);
     color: var(--text-color);
     border: 1px solid #ccc;
+    border-radius: 4px;
   }
   button {
     background-color: var(--button-color);
     color: white;
     border: none;
-    border-radius: 4px;
   }
   button:hover {
     background-color: var(--button-hover);
   }
+  .container {
+    flex: 1;
+    display: flex;
+    gap: 10px;
+    padding: 10px;
+    box-sizing: border-box;
+  }
+  textarea, .preview {
+    flex: 1;
+    height: calc(100% - 20px);
+    padding: 12px;
+    font-size: var(--font-size);
+    background-color: var(--input-bg);
+    color: var(--text-color);
+    border: 1px solid #ccc;
+    box-sizing: border-box;
+    resize: none;
+    overflow-y: auto;
+  }
+  .preview {
+    white-space: pre-wrap;
+    border: 1px dashed #888;
+  }
+  @media (max-width: 768px) {
+    .container {
+      flex-direction: column;
+    }
+    textarea, .preview {
+      height: 50%;
+    }
+  }
 </style>
 </head>
 <body>
-  <h2>Paste or drop text to translate</h2>
-  <textarea id="inputText" placeholder="Paste your text here..."></textarea>
-  <div class="controls">
-    <label>Target language:</label>
+  <div class="toolbar">
+    <label>Target:</label>
     <select id="targetLang">
       <option value="zh-CN" selected>Chinese</option>
       <option value="fr">French</option>
@@ -103,12 +110,15 @@
     <button onclick="toggleFont()">A+ / A−</button>
     <button onclick="toggleTheme()">🌙 / ☀️</button>
   </div>
-  <div id="preview" class="preview"></div>
+  <div class="container">
+    <textarea id="inputText" placeholder="Paste or type text here..."></textarea>
+    <div id="preview" class="preview"></div>
+  </div>
 
 <script>
 let isLargeFont = false;
 
-// Load saved preferences
+// Load preferences
 document.addEventListener('DOMContentLoaded', () => {
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme) document.body.dataset.theme = savedTheme;
@@ -118,7 +128,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateFont();
 });
 
-// Save settings when changed
+// Save preferences when changed
 document.getElementById('mode').addEventListener('change', e =>
   localStorage.setItem('mode', e.target.value));
 document.getElementById('targetLang').addEventListener('change', e =>
@@ -140,7 +150,7 @@ function updateFont() {
   document.documentElement.style.setProperty('--font-size', isLargeFont ? '20px' : '16px');
 }
 
-// Detect segmentation language
+// Detect language for segmenting sentences
 function getSegmentationLang() {
   const lang = document.getElementById('targetLang').value;
   if (lang.startsWith('zh')) return 'zh';
@@ -148,7 +158,7 @@ function getSegmentationLang() {
   return 'en';
 }
 
-// Format text
+// Format text into clean sentences
 function formatText(text) {
   const clean = text.replace(/(\r\n|\n|\r)/gm, ' ')
     .replace(/\s\s+/g, ' ')
@@ -161,15 +171,34 @@ function formatText(text) {
     .join('\n\n');
 }
 
-// Handle paste
+// Update preview live as user types
+function updateLivePreview() {
+  const raw = document.getElementById('inputText').value;
+  const formatted = formatText(raw);
+  document.getElementById('preview').textContent = formatted;
+}
+
+// Insert text at cursor when pasting or dropping
+function insertTextAtCursor(formatted) {
+  const textArea = document.getElementById('inputText');
+  const start = textArea.selectionStart;
+  const end = textArea.selectionEnd;
+  textArea.value = textArea.value.slice(0, start) + formatted + textArea.value.slice(end);
+  textArea.selectionStart = textArea.selectionEnd = start + formatted.length;
+}
+
+// Event listeners
+document.getElementById('inputText').addEventListener('input', updateLivePreview);
+
 document.getElementById('inputText').addEventListener('paste', e => {
   e.preventDefault();
   const text = (e.clipboardData || window.clipboardData).getData('text');
   const formatted = formatText(text);
-  insertAndPreview(formatted);
+  insertTextAtCursor(formatted);
+  updateLivePreview();
+  if (document.getElementById('mode').value === 'auto') translateText();
 });
 
-// Handle drag & drop
 document.getElementById('inputText').addEventListener('drop', e => {
   e.preventDefault();
   const file = e.dataTransfer.files[0];
@@ -177,24 +206,15 @@ document.getElementById('inputText').addEventListener('drop', e => {
     const reader = new FileReader();
     reader.onload = () => {
       const formatted = formatText(reader.result);
-      insertAndPreview(formatted);
+      insertTextAtCursor(formatted);
+      updateLivePreview();
+      if (document.getElementById('mode').value === 'auto') translateText();
     };
     reader.readAsText(file);
   }
 });
 
-// Insert text and update preview
-function insertAndPreview(formatted) {
-  const textArea = document.getElementById('inputText');
-  const start = textArea.selectionStart;
-  const end = textArea.selectionEnd;
-  textArea.value = textArea.value.slice(0, start) + formatted + textArea.value.slice(end);
-  textArea.selectionStart = textArea.selectionEnd = start + formatted.length;
-  document.getElementById('preview').textContent = formatted;
-  if (document.getElementById('mode').value === 'auto') translateText();
-}
-
-// Translate
+// Translate button action
 function translateText() {
   const text = document.getElementById('inputText').value.trim();
   const targetLang = document.getElementById('targetLang').value;
@@ -205,14 +225,14 @@ function translateText() {
   document.getElementById('preview').textContent = '';
 }
 
-// Copy to clipboard
+// Copy text button
 function copyText() {
   const text = document.getElementById('inputText').value;
   if (!text) return alert('Nothing to copy!');
   navigator.clipboard.writeText(text).then(() => alert('Copied!'));
 }
 
-// Download as txt
+// Download as .txt
 function downloadText() {
   const text = document.getElementById('inputText').value;
   if (!text) return alert('Nothing to download!');
