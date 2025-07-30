@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OpenAI Text Formatter with Modes + Spinner</title>
+<title>OpenAI Text Formatter (Fixed)</title>
 <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -72,9 +72,7 @@
     display: none;
     z-index: 2;
   }
-  @keyframes spin {
-    to { transform: translate(-50%, -50%) rotate(360deg); }
-  }
+  @keyframes spin { to { transform: translate(-50%, -50%) rotate(360deg); } }
 </style>
 </head>
 <body>
@@ -99,12 +97,21 @@
 let currentIndex = 0;
 let sentences = [];
 let cache = {}; 
-let combinedTextCache = "";
+let combinedTextCache = {};
 
 document.addEventListener('DOMContentLoaded', async () => {
   await checkApiKey();
   const textarea = document.getElementById('inputText');
-  textarea.addEventListener('input', updatePreview);
+  textarea.addEventListener('input', () => {
+    formatTextarea();
+    updatePreview();
+  });
+  textarea.addEventListener('paste', () => {
+    setTimeout(() => {
+      formatTextarea();
+      updatePreview();
+    }, 50);
+  });
   if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');
 });
 
@@ -127,9 +134,22 @@ function toggleTheme() {
   localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
 }
 
+// Format textarea: split into sentences or paragraphs separated by blank line
+function formatTextarea() {
+  const textarea = document.getElementById('inputText');
+  let text = textarea.value.trim();
+  if (!text) return;
+  // Remove extra spaces
+  text = text.replace(/\s+/g, ' ');
+  // Split by punctuation that usually ends a sentence
+  let parts = text.split(/(?<=[.?!。！？])/).map(s => s.trim()).filter(Boolean);
+  textarea.value = parts.join('\n\n');
+}
+
 async function updatePreview() {
   const mode = document.getElementById('modeSelect').value;
   const text = document.getElementById('inputText').value.trim();
+  if (!text) return;
   if (mode === 'plain') {
     showPlain(text);
   } else if (mode === 'combined') {
@@ -145,16 +165,13 @@ function showPlain(text) {
     `<span class="sentence" data-idx="${idx}">${p}</span>`
   ).join('') + '<div class="spinner" id="spinner"></div>';
   attachClickEvents();
-  cache = {};
-  currentIndex = 0;
-  highlightCurrent();
+  cache = {}; currentIndex = 0; highlightCurrent();
 }
 
 async function showCombined(text) {
-  if (!text) return;
   const spinner = document.getElementById('spinner');
   spinner.style.display = 'block';
-  if (combinedTextCache && combinedTextCache.original === text) {
+  if (combinedTextCache.original === text) {
     displayCombined(combinedTextCache.combined);
     spinner.style.display = 'none';
     return;
@@ -197,9 +214,7 @@ function displayCombined(text) {
     `<span class="sentence" data-idx="${idx}">${p}</span>`
   ).join('') + '<div class="spinner" id="spinner"></div>';
   attachClickEvents();
-  cache = {};
-  currentIndex = 0;
-  highlightCurrent();
+  cache = {}; currentIndex = 0; highlightCurrent();
 }
 
 function attachClickEvents() {
@@ -255,20 +270,17 @@ async function playSentence(idx) {
 
 function playCurrent() {
   if (sentences.length === 0) return;
-  highlightCurrent();
-  playSentence(currentIndex);
+  highlightCurrent(); playSentence(currentIndex);
 }
 function playPrevious() {
   if (sentences.length === 0) return;
   currentIndex = Math.max(0, currentIndex - 1);
-  highlightCurrent();
-  playSentence(currentIndex);
+  highlightCurrent(); playSentence(currentIndex);
 }
 function playNext() {
   if (sentences.length === 0) return;
   currentIndex = Math.min(sentences.length - 1, currentIndex + 1);
-  highlightCurrent();
-  playSentence(currentIndex);
+  highlightCurrent(); playSentence(currentIndex);
 }
 </script>
 </body>
