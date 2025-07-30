@@ -56,7 +56,22 @@ let cache = {};  // cache: idx -> blob URL
 
 document.addEventListener('DOMContentLoaded', async () => {
   await checkApiKey();
-  document.getElementById('inputText').addEventListener('input', updatePreview);
+  const textarea = document.getElementById('inputText');
+  textarea.addEventListener('input', updatePreview);
+
+  textarea.addEventListener('paste', () => {
+    // Wait a short moment for paste to complete
+    setTimeout(() => {
+      let text = textarea.value;
+      // Remove extra spaces
+      text = text.replace(/\s+/g, ' ');
+      // Split into sentences
+      let splitted = text.split(/(?<=[.?!。！？])/).map(s => s.trim()).filter(Boolean);
+      // Join back with blank lines
+      textarea.value = splitted.join('\n\n');
+      updatePreview();
+    }, 50);
+  });
 });
 
 async function checkApiKey() {
@@ -75,7 +90,8 @@ function resetApiKey() {
 
 function updatePreview() {
   const text = document.getElementById('inputText').value;
-  sentences = text.split(/(?<=[.?!。！？])/).map(s => s.trim()).filter(Boolean);
+  // Split by empty lines or by sentence-ending punctuation
+  sentences = text.split(/\n\s*\n|(?<=[.?!。！？])/).map(s => s.trim()).filter(Boolean);
   const preview = document.getElementById('preview');
   preview.innerHTML = sentences.map((s, idx) =>
     `<span class="sentence" data-idx="${idx}">${s}</span>`
