@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quick Translate + Play Button</title>
+<title>Quick Translate + Click to Read</title>
 <style>
   :root {
     --bg-color: #ffffff;
@@ -97,38 +97,18 @@
     flex: 1 1 100%;
   }
   .sentence {
-    position: relative;
-    display: inline-block;
-    margin-right: 4px;
-    padding: 2px 4px;
+    display: block;          /* <-- new line for each sentence */
+    cursor: pointer;
+    margin-bottom: 8px;
+    padding: 2px 6px;
     border-radius: 4px;
     transition: background-color 0.2s;
   }
   .sentence:hover {
-    background-color: rgba(66,133,244,0.1);
+    background-color: rgba(66,133,244,0.15);
   }
   .sentence.active {
-    background-color: rgba(66,133,244,0.3);
-  }
-  .play-btn {
-    display: none;
-    position: absolute;
-    right: -20px;
-    top: 50%;
-    transform: translateY(-50%);
-    font-size: 12px;
-    background: var(--button-color);
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 16px;
-    height: 16px;
-    cursor: pointer;
-    line-height: 16px;
-    text-align: center;
-  }
-  .sentence:hover .play-btn {
-    display: inline-block;
+    background-color: rgba(66,133,244,0.35);
   }
   @media (max-width: 768px) {
     .container {
@@ -144,28 +124,28 @@
 </style>
 </head>
 <body>
-<div class="toolbar">
-  <label>Target:</label>
-  <select id="targetLang">
-    <option value="zh-CN" selected>Chinese</option>
-    <option value="fr">French</option>
-    <option value="en">English</option>
-  </select>
-  <label>Mode:</label>
-  <select id="mode">
-    <option value="manual" selected>Manual</option>
-    <option value="auto">Automatic</option>
-  </select>
-  <button onclick="translateText()">Translate</button>
-  <button onclick="copyText()">Copy</button>
-  <button onclick="downloadText()">Download</button>
-  <button onclick="toggleFont()">A+ / A−</button>
-  <button onclick="toggleTheme()">🌙 / ☀️</button>
-</div>
-<div class="container" id="container">
-  <textarea id="inputText" placeholder="Paste or type text here..."></textarea>
-  <div id="preview" class="preview"></div>
-</div>
+  <div class="toolbar">
+    <label>Target:</label>
+    <select id="targetLang">
+      <option value="zh-CN" selected>Chinese</option>
+      <option value="fr">French</option>
+      <option value="en">English</option>
+    </select>
+    <label>Mode:</label>
+    <select id="mode">
+      <option value="manual" selected>Manual</option>
+      <option value="auto">Automatic</option>
+    </select>
+    <button onclick="translateText()">Translate</button>
+    <button onclick="copyText()">Copy</button>
+    <button onclick="downloadText()">Download</button>
+    <button onclick="toggleFont()">A+ / A−</button>
+    <button onclick="toggleTheme()">🌙 / ☀️</button>
+  </div>
+  <div class="container" id="container">
+    <textarea id="inputText" placeholder="Paste or type text here..."></textarea>
+    <div id="preview" class="preview"></div>
+  </div>
 
 <script>
 let isLargeFont = false;
@@ -258,18 +238,16 @@ function updateLivePreview() {
   const preview = document.getElementById('preview');
   const segmenter = new Intl.Segmenter(getSegmentationLang(), { granularity: 'sentence' });
   preview.innerHTML = [...segmenter.segment(text)]
-    .map(s => `<span class="sentence">${s.segment.trim()}<button class="play-btn">▶</button></span>`)
-    .join(' ');
+    .map(s => `<span class="sentence">${s.segment.trim()}</span>`)
+    .join('');
 
-  // Add click event to play buttons
-  preview.querySelectorAll('.play-btn').forEach(btn => {
-    btn.addEventListener('click', e => {
-      e.stopPropagation(); // prevent sentence click
-      const span = btn.closest('.sentence');
+  // Add click event to read
+  preview.querySelectorAll('.sentence').forEach(span => {
+    span.addEventListener('click', () => {
       speechSynthesis.cancel();
       preview.querySelectorAll('.sentence').forEach(s => s.classList.remove('active'));
       span.classList.add('active');
-      speak(span.textContent.replace('▶','').trim(), () => span.classList.remove('active'));
+      speak(span.textContent, () => span.classList.remove('active'));
     });
   });
 }
