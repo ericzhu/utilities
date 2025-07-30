@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OpenAI TTS Demo (Better Preview Style)</title>
+<title>OpenAI TTS Demo (CNN-style Font & Spacing)</title>
 <style>
   :root {
     --bg-color: #ffffff;
@@ -25,7 +25,7 @@
     height: 100vh;
     background: var(--bg-color);
     color: var(--text-color);
-    font-family: sans-serif;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
   }
   .toolbar {
     background: #4285F4; color: white;
@@ -40,17 +40,21 @@
     flex: 1; display: flex; gap: 10px; padding: 10px; box-sizing: border-box;
   }
   textarea {
-    flex: 1; resize: none; font-family: monospace;
-    font-size: 13px; /* smaller font */
+    flex: 1; resize: none;
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
     padding: 10px; background: var(--preview-bg); color: var(--text-color);
     border: none; outline: none;
   }
   .preview {
     flex: 1; padding: 10px; background: var(--preview-bg); overflow-y: auto;
-    font-family: sans-serif; font-size: 18px; /* larger font */
+    font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
   }
   .sentence {
-    display: block; margin-bottom: 16px; /* larger margin between paragraphs */
+    display: block; margin-bottom: 16px; /* consistent paragraph spacing */
     cursor: pointer; padding: 2px 4px;
     border-radius: 3px;
   }
