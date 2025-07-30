@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Quick Translate + Click to Read</title>
+<title>Quick Translate + Click to Read + Read All</title>
 <style>
   :root {
     --bg-color: #ffffff;
@@ -54,6 +54,7 @@
     background-color: var(--button-color);
     color: white;
     border: none;
+    cursor: pointer;
   }
   button:hover {
     background-color: var(--button-hover);
@@ -97,7 +98,7 @@
     flex: 1 1 100%;
   }
   .sentence {
-    display: block;          /* <-- new line for each sentence */
+    display: block;          /* new line for each sentence */
     cursor: pointer;
     margin-bottom: 8px;
     padding: 2px 6px;
@@ -141,6 +142,7 @@
     <button onclick="downloadText()">Download</button>
     <button onclick="toggleFont()">A+ / A−</button>
     <button onclick="toggleTheme()">🌙 / ☀️</button>
+    <button onclick="readAll()">Read All</button>
   </div>
   <div class="container" id="container">
     <textarea id="inputText" placeholder="Paste or type text here..."></textarea>
@@ -150,8 +152,17 @@
 <script>
 let isLargeFont = false;
 let translateWindow;
+let voices = [];
+let readingAll = false;
 
 document.addEventListener('DOMContentLoaded', () => {
+  voices = window.speechSynthesis.getVoices();
+  if (voices.length === 0) {
+    window.speechSynthesis.onvoiceschanged = () => {
+      voices = window.speechSynthesis.getVoices();
+    };
+  }
+  
   const savedTheme = localStorage.getItem('theme');
   if (savedTheme) document.body.dataset.theme = savedTheme;
   document.getElementById('mode').value = localStorage.getItem('mode') || 'manual';
@@ -241,9 +252,10 @@ function updateLivePreview() {
     .map(s => `<span class="sentence">${s.segment.trim()}</span>`)
     .join('');
 
-  // Add click event to read
+  // Add click event to read single sentence
   preview.querySelectorAll('.sentence').forEach(span => {
     span.addEventListener('click', () => {
+      if(readingAll) return; // ignore clicks during readAll
       speechSynthesis.cancel();
       preview.querySelectorAll('.sentence').forEach(s => s.classList.remove('active'));
       span.classList.add('active');
@@ -252,11 +264,55 @@ function updateLivePreview() {
   });
 }
 
+function getBestVoice(langPrefix) {
+  if (!voices.length) voices = window.speechSynthesis.getVoices();
+  const filtered = voices.filter(v => v.lang.startsWith(langPrefix));
+  if (filtered.length > 0) {
+    const preferred = filtered.find(v => /google|microsoft|chrome/i.test(v.name));
+    return preferred || filtered[0];
+  }
+  return voices[0] || null;
+}
+
 function speak(text, onend) {
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = getSegmentationLang();
+  const lang = getSegmentationLang();
+  utterance.lang = lang;
+  const voice = getBestVoice(lang);
+  if (voice) utterance.voice = voice;
+  utterance.rate = 1;
+  utterance.pitch = 1;
+  utterance.volume = 1;
   utterance.onend = onend;
   speechSynthesis.speak(utterance);
+}
+
+function readAll() {
+  const preview = document.getElementById('preview');
+  const sentences = Array.from(preview.querySelectorAll('.sentence'));
+  if (sentences.length === 0) {
+    alert('No sentences to read!');
+    return;
+  }
+  readingAll = true;
+  let index = 0;
+
+  function readNext() {
+    if (index >= sentences.length) {
+      readingAll = false;
+      preview.querySelectorAll('.sentence').forEach(s => s.classList.remove('active'));
+      return;
+    }
+    const span = sentences[index];
+    preview.querySelectorAll('.sentence').forEach(s => s.classList.remove('active'));
+    span.classList.add('active');
+    speak(span.textContent, () => {
+      index++;
+      readNext();
+    });
+  }
+  speechSynthesis.cancel();
+  readNext();
 }
 
 function translateText() {
