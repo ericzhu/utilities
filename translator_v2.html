@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Quick Google Translate</title>
 
-<!-- Import beautiful fonts -->
+<!-- Google Fonts -->
 <link href="https://fonts.googleapis.com/css2?family=Merriweather&family=Roboto:wght@400;500&family=Source+Code+Pro&display=swap" rel="stylesheet">
 
 <style>
@@ -170,6 +170,7 @@ function getSegmentationLang() {
   return 'en';
 }
 
+// Format text into nice sentences (only for paste/drop)
 function formatText(text) {
   const clean = text.replace(/(\r\n|\n|\r)/gm, ' ')
     .replace(/\s\s+/g, ' ')
@@ -182,11 +183,9 @@ function formatText(text) {
     .join('\n\n');
 }
 
-// Live preview update
+// Live preview: always mirror textarea content
 function updateLivePreview() {
-  const raw = document.getElementById('inputText').value;
-  const formatted = formatText(raw);
-  document.getElementById('preview').textContent = formatted;
+  document.getElementById('preview').textContent = document.getElementById('inputText').value;
 }
 
 // Insert text at cursor
@@ -198,7 +197,7 @@ function insertTextAtCursor(formatted) {
   textArea.selectionStart = textArea.selectionEnd = start + formatted.length;
 }
 
-// Event listeners
+// Events
 document.getElementById('inputText').addEventListener('input', updateLivePreview);
 
 document.getElementById('inputText').addEventListener('paste', e => {
