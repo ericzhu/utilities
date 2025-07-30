@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OpenAI TTS Demo (Paragraph Mode + Auto Scroll + Dark/Light)</title>
+<title>OpenAI TTS Demo (Better Preview Style)</title>
 <style>
   :root {
     --bg-color: #ffffff;
@@ -40,16 +40,18 @@
     flex: 1; display: flex; gap: 10px; padding: 10px; box-sizing: border-box;
   }
   textarea {
-    flex: 1; resize: none; font-family: monospace; font-size: 16px;
+    flex: 1; resize: none; font-family: monospace;
+    font-size: 13px; /* smaller font */
     padding: 10px; background: var(--preview-bg); color: var(--text-color);
     border: none; outline: none;
   }
   .preview {
     flex: 1; padding: 10px; background: var(--preview-bg); overflow-y: auto;
-    font-family: sans-serif; font-size: 16px;
+    font-family: sans-serif; font-size: 18px; /* larger font */
   }
   .sentence {
-    display: block; margin-bottom: 6px; cursor: pointer; padding: 2px 4px;
+    display: block; margin-bottom: 16px; /* larger margin between paragraphs */
+    cursor: pointer; padding: 2px 4px;
     border-radius: 3px;
   }
   .sentence:hover { background: var(--hover); }
@@ -71,7 +73,7 @@
 <script>
 let currentIndex = 0;
 let sentences = [];
-let cache = {}; // idx → blob URL
+let cache = {};
 
 document.addEventListener('DOMContentLoaded', async () => {
   await checkApiKey();
@@ -85,7 +87,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       formatParagraphs();
     }, 50);
   });
-  // Remember theme
   if (localStorage.getItem('theme') === 'dark') document.body.classList.add('dark');
 });
 
@@ -121,7 +122,7 @@ function formatParagraphs() {
 function updatePreviewDisplay() {
   const preview = document.getElementById('preview');
   preview.innerHTML = sentences.map((s, idx) =>
-    `<span class="sentence" data-idx="${idx}">${idx+1}. ${s}</span>`
+    `<span class="sentence" data-idx="${idx}">${s}</span>`
   ).join('');
   preview.querySelectorAll('.sentence').forEach(span => {
     span.addEventListener('click', () => {
@@ -130,7 +131,7 @@ function updatePreviewDisplay() {
       playSentence(currentIndex);
     });
   });
-  cache = {}; // clear cache
+  cache = {};
   currentIndex = 0;
   highlightCurrent();
 }
