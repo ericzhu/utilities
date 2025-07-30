@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OpenAI TTS Demo (User API Key + Cache)</title>
+<title>OpenAI TTS Demo (User API Key + Cache + Paragraph Mode)</title>
 <style>
   body {
     margin: 0; padding: 0;
@@ -52,24 +52,20 @@
 <script>
 let currentIndex = 0;
 let sentences = [];
-let cache = {};  // cache: idx -> blob URL
+let cache = {};  // idx → blob URL
 
 document.addEventListener('DOMContentLoaded', async () => {
   await checkApiKey();
   const textarea = document.getElementById('inputText');
-  textarea.addEventListener('input', updatePreview);
-
+  textarea.addEventListener('input', () => {
+    formatParagraphs(); // update preview live as you type
+  });
   textarea.addEventListener('paste', () => {
-    // Wait a short moment for paste to complete
     setTimeout(() => {
-      let text = textarea.value;
-      // Remove extra spaces
-      text = text.replace(/\s+/g, ' ');
-      // Split into sentences
+      let text = textarea.value.replace(/\s+/g, ' ');
       let splitted = text.split(/(?<=[.?!。！？])/).map(s => s.trim()).filter(Boolean);
-      // Join back with blank lines
       textarea.value = splitted.join('\n\n');
-      updatePreview();
+      formatParagraphs();
     }, 50);
   });
 });
@@ -88,10 +84,20 @@ function resetApiKey() {
   checkApiKey();
 }
 
-function updatePreview() {
+function formatParagraphs() {
   const text = document.getElementById('inputText').value;
-  // Split by empty lines or by sentence-ending punctuation
-  sentences = text.split(/\n\s*\n|(?<=[.?!。！？])/).map(s => s.trim()).filter(Boolean);
+  // If user left blank lines, treat them as paragraphs.
+  // Otherwise, treat whole text as one paragraph.
+  let paragraphs = text.split(/\n\s*\n/).map(p => p.trim()).filter(Boolean);
+  if (paragraphs.length <= 1) {
+    // single paragraph mode → merge all lines
+    paragraphs = [text.replace(/\n+/g, ' ').trim()];
+  }
+  sentences = paragraphs; // treat as "sentences" to reuse rest of code
+  updatePreviewDisplay();
+}
+
+function updatePreviewDisplay() {
   const preview = document.getElementById('preview');
   preview.innerHTML = sentences.map((s, idx) =>
     `<span class="sentence" data-idx="${idx}">${s}</span>`
@@ -103,7 +109,7 @@ function updatePreview() {
       playSentence(currentIndex);
     });
   });
-  cache = {};  // clear cache when text changes
+  cache = {}; // clear cache when text changes
   currentIndex = 0;
   highlightCurrent();
 }
@@ -116,11 +122,9 @@ function highlightCurrent() {
 
 async function playSentence(idx) {
   if (cache[idx]) {
-    // play cached audio
     const audio = new Audio(cache[idx]);
     audio.play();
   } else {
-    // call OpenAI & cache
     const text = sentences[idx];
     const apiKey = localStorage.getItem('openai_api_key');
     if (!apiKey) return alert("Missing API key.");
