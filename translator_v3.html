@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OpenAI TTS Demo (User API Key)</title>
+<title>OpenAI TTS Demo (User API Key + Cache)</title>
 <style>
   body {
     margin: 0; padding: 0;
@@ -52,6 +52,7 @@
 <script>
 let currentIndex = 0;
 let sentences = [];
+let cache = {};  // cache: idx -> blob URL
 
 document.addEventListener('DOMContentLoaded', async () => {
   await checkApiKey();
@@ -83,9 +84,10 @@ function updatePreview() {
     span.addEventListener('click', () => {
       currentIndex = parseInt(span.dataset.idx);
       highlightCurrent();
-      speakText(span.textContent);
+      playSentence(currentIndex);
     });
   });
+  cache = {};  // clear cache when text changes
   currentIndex = 0;
   highlightCurrent();
 }
@@ -96,57 +98,65 @@ function highlightCurrent() {
   if (spans[currentIndex]) spans[currentIndex].classList.add('active');
 }
 
-async function speakText(text, onend) {
-  const apiKey = localStorage.getItem('openai_api_key');
-  if (!apiKey) return alert("Missing API key.");
-  try {
-    const res = await fetch("https://api.openai.com/v1/audio/speech", {
-      method: "POST",
-      headers: {
-        "Authorization": "Bearer " + apiKey,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        model: "tts-1",
-        voice: "alloy",
-        input: text
-      })
-    });
-    if (!res.ok) {
-      const errorData = await res.json().catch(() => ({}));
-      alert("OpenAI Error: " + (errorData.error?.message || res.statusText));
-      return;
-    }
-    const arrayBuffer = await res.arrayBuffer();
-    const blob = new Blob([arrayBuffer], { type: "audio/mpeg" });
-    const url = URL.createObjectURL(blob);
-    const audio = new Audio(url);
-    if (onend) audio.onended = onend;
+async function playSentence(idx) {
+  if (cache[idx]) {
+    // play cached audio
+    const audio = new Audio(cache[idx]);
     audio.play();
-  } catch (e) {
-    console.error(e);
-    alert("Failed to speak.");
+  } else {
+    // call OpenAI & cache
+    const text = sentences[idx];
+    const apiKey = localStorage.getItem('openai_api_key');
+    if (!apiKey) return alert("Missing API key.");
+    try {
+      const res = await fetch("https://api.openai.com/v1/audio/speech", {
+        method: "POST",
+        headers: {
+          "Authorization": "Bearer " + apiKey,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          model: "tts-1",
+          voice: "alloy",
+          input: text
+        })
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        alert("OpenAI Error: " + (errorData.error?.message || res.statusText));
+        return;
+      }
+      const arrayBuffer = await res.arrayBuffer();
+      const blob = new Blob([arrayBuffer], { type: "audio/mpeg" });
+      const url = URL.createObjectURL(blob);
+      cache[idx] = url;
+      const audio = new Audio(url);
+      audio.play();
+    } catch (e) {
+      console.error(e);
+      alert("Failed to speak.");
+    }
   }
 }
 
 function playCurrent() {
   if (sentences.length === 0) return;
   highlightCurrent();
-  speakText(sentences[currentIndex]);
+  playSentence(currentIndex);
 }
 
 function playPrevious() {
   if (sentences.length === 0) return;
   currentIndex = Math.max(0, currentIndex - 1);
   highlightCurrent();
-  speakText(sentences[currentIndex]);
+  playSentence(currentIndex);
 }
 
 function playNext() {
   if (sentences.length === 0) return;
   currentIndex = Math.min(sentences.length - 1, currentIndex + 1);
   highlightCurrent();
-  speakText(sentences[currentIndex]);
+  playSentence(currentIndex);
 }
 </script>
 </body>
