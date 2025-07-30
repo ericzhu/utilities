@@ -40,7 +40,9 @@
 </head>
 <body>
   <div class="toolbar">
-    <button onclick="readAll()">▶️ Read All</button>
+    <button onclick="playPrevious()">⏮ Play Previous</button>
+    <button onclick="playCurrent()">▶️ Play Current</button>
+    <button onclick="playNext()">⏭ Play Next</button>
     <button onclick="resetApiKey()">🔑 Change API Key</button>
   </div>
   <div class="container">
@@ -48,7 +50,8 @@
     <div id="preview" class="preview"></div>
   </div>
 <script>
-let readingAll = false;
+let currentIndex = 0;
+let sentences = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
   await checkApiKey();
@@ -71,21 +74,26 @@ function resetApiKey() {
 
 function updatePreview() {
   const text = document.getElementById('inputText').value;
-  const sentences = text.split(/(?<=[.?!。！？])/).map(s => s.trim()).filter(Boolean);
+  sentences = text.split(/(?<=[.?!。！？])/).map(s => s.trim()).filter(Boolean);
   const preview = document.getElementById('preview');
-  preview.innerHTML = sentences.map(s =>
-    `<span class="sentence">${s}</span>`
+  preview.innerHTML = sentences.map((s, idx) =>
+    `<span class="sentence" data-idx="${idx}">${s}</span>`
   ).join('');
   preview.querySelectorAll('.sentence').forEach(span => {
     span.addEventListener('click', () => {
-      if (readingAll) return;
-      speakText(span.textContent, () => {
-        span.classList.remove('active');
-      });
-      preview.querySelectorAll('.sentence').forEach(s => s.classList.remove('active'));
-      span.classList.add('active');
+      currentIndex = parseInt(span.dataset.idx);
+      highlightCurrent();
+      speakText(span.textContent);
     });
   });
+  currentIndex = 0;
+  highlightCurrent();
+}
+
+function highlightCurrent() {
+  const spans = document.querySelectorAll('.sentence');
+  spans.forEach(span => span.classList.remove('active'));
+  if (spans[currentIndex]) spans[currentIndex].classList.add('active');
 }
 
 async function speakText(text, onend) {
@@ -121,26 +129,24 @@ async function speakText(text, onend) {
   }
 }
 
-async function readAll() {
-  const spans = Array.from(document.querySelectorAll('.sentence'));
-  if (!spans.length) return;
-  readingAll = true;
-  let idx = 0;
-  async function next() {
-    if (idx >= spans.length) {
-      readingAll = false;
-      spans.forEach(s => s.classList.remove('active'));
-      return;
-    }
-    const span = spans[idx];
-    spans.forEach(s => s.classList.remove('active'));
-    span.classList.add('active');
-    await speakText(span.textContent, () => {
-      idx++;
-      next();
-    });
-  }
-  next();
+function playCurrent() {
+  if (sentences.length === 0) return;
+  highlightCurrent();
+  speakText(sentences[currentIndex]);
+}
+
+function playPrevious() {
+  if (sentences.length === 0) return;
+  currentIndex = Math.max(0, currentIndex - 1);
+  highlightCurrent();
+  speakText(sentences[currentIndex]);
+}
+
+function playNext() {
+  if (sentences.length === 0) return;
+  currentIndex = Math.min(sentences.length - 1, currentIndex + 1);
+  highlightCurrent();
+  speakText(sentences[currentIndex]);
 }
 </script>
 </body>
