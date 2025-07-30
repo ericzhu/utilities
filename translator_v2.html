@@ -4,6 +4,10 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Quick Google Translate</title>
+
+<!-- Import beautiful fonts -->
+<link href="https://fonts.googleapis.com/css2?family=Merriweather&family=Roboto:wght@400;500&family=Source+Code+Pro&display=swap" rel="stylesheet">
+
 <style>
   :root {
     --bg-color: #ffffff;
@@ -25,7 +29,7 @@
     padding: 0;
     background-color: var(--bg-color);
     color: var(--text-color);
-    font-family: Arial, sans-serif;
+    font-family: 'Roboto', sans-serif;
     display: flex;
     flex-direction: column;
     height: 100vh;
@@ -65,10 +69,11 @@
     padding: 10px;
     box-sizing: border-box;
   }
-  textarea, .preview {
+  textarea {
     flex: 1;
     height: calc(100% - 20px);
     padding: 12px;
+    font-family: 'Source Code Pro', monospace;
     font-size: var(--font-size);
     background-color: var(--input-bg);
     color: var(--text-color);
@@ -78,8 +83,16 @@
     overflow-y: auto;
   }
   .preview {
+    flex: 1;
+    font-family: 'Merriweather', serif;
+    font-size: calc(var(--font-size) * 1.05);
+    background-color: rgba(0, 0, 0, 0.03);
+    border: 1px solid rgba(0,0,0,0.1);
+    border-left: 4px solid var(--button-color);
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    padding: 12px;
     white-space: pre-wrap;
-    border: 1px dashed #888;
+    overflow-y: auto;
   }
   @media (max-width: 768px) {
     .container {
@@ -128,7 +141,7 @@ document.addEventListener('DOMContentLoaded', () => {
   updateFont();
 });
 
-// Save preferences when changed
+// Save preferences
 document.getElementById('mode').addEventListener('change', e =>
   localStorage.setItem('mode', e.target.value));
 document.getElementById('targetLang').addEventListener('change', e =>
@@ -150,7 +163,6 @@ function updateFont() {
   document.documentElement.style.setProperty('--font-size', isLargeFont ? '20px' : '16px');
 }
 
-// Detect language for segmenting sentences
 function getSegmentationLang() {
   const lang = document.getElementById('targetLang').value;
   if (lang.startsWith('zh')) return 'zh';
@@ -158,7 +170,6 @@ function getSegmentationLang() {
   return 'en';
 }
 
-// Format text into clean sentences
 function formatText(text) {
   const clean = text.replace(/(\r\n|\n|\r)/gm, ' ')
     .replace(/\s\s+/g, ' ')
@@ -171,14 +182,14 @@ function formatText(text) {
     .join('\n\n');
 }
 
-// Update preview live as user types
+// Live preview update
 function updateLivePreview() {
   const raw = document.getElementById('inputText').value;
   const formatted = formatText(raw);
   document.getElementById('preview').textContent = formatted;
 }
 
-// Insert text at cursor when pasting or dropping
+// Insert text at cursor
 function insertTextAtCursor(formatted) {
   const textArea = document.getElementById('inputText');
   const start = textArea.selectionStart;
@@ -214,7 +225,6 @@ document.getElementById('inputText').addEventListener('drop', e => {
   }
 });
 
-// Translate button action
 function translateText() {
   const text = document.getElementById('inputText').value.trim();
   const targetLang = document.getElementById('targetLang').value;
@@ -225,14 +235,12 @@ function translateText() {
   document.getElementById('preview').textContent = '';
 }
 
-// Copy text button
 function copyText() {
   const text = document.getElementById('inputText').value;
   if (!text) return alert('Nothing to copy!');
   navigator.clipboard.writeText(text).then(() => alert('Copied!'));
 }
 
-// Download as .txt
 function downloadText() {
   const text = document.getElementById('inputText').value;
   if (!text) return alert('Nothing to download!');
