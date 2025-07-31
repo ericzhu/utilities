@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Text Preview & TTS – Smart Paste</title>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Open+Sans:wght@400;600&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  body { margin:0; padding:0; display:flex; flex-direction:column; height:100vh; font-family:'Open Sans',sans-serif; background:#f2f3f5; color:#333; }
+  .toolbar { background:#ffffff; padding:8px 12px; display:flex; gap:8px; align-items:center; box-shadow:0 1px 4px rgba(0,0,0,0.1); position:sticky; top:0; z-index:10; }
+  .toolbar button, .toolbar select, .toolbar input[type=range] { background:#4285F4; color:white; border:none; padding:6px 10px; cursor:pointer; border-radius:6px; font-size:14px; transition:background 0.2s; }
+  .toolbar button:hover, .toolbar select:hover { background:#3367d6; }
+  .container { flex:1; display:flex; gap:10px; padding:10px; box-sizing:border-box; }
+  textarea { flex:1; resize:none; font-size:16px; line-height:1.6; padding:12px; background:#fafafa; color:#444; border:1px solid #ccc; border-radius:6px; font-family:'Source Code Pro', monospace; }
+  .preview { flex:1; padding:12px; background:#ffffff; overflow-y:auto; font-size:20px; line-height:1.8; border:1px solid #ccc; border-radius:6px; position:relative; }
+  .sentence { display:block; margin-bottom:18px; cursor:pointer; padding:2px 4px; border-radius:4px; transition:background 0.2s; }
+  .sentence:hover { background:rgba(66,133,244,0.15); }
+  .active { background:rgba(66,133,244,0.25); }
+  .spinner { position:absolute; top:50%; left:50%; width:40px; height:40px; border:4px solid #ccc; border-top:4px solid #4285F4; border-radius:50%; animation:spin 1s linear infinite; transform:translate(-50%,-50%); display:none; z-index:2; }
+  @keyframes spin { to{ transform:translate(-50%,-50%) rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button id="chineseVoiceBtn" onclick="playChineseVoice()">🔊 Chinese voice</button>
+  <button onclick="downloadChineseVoice()">⬇️ Download MP3</button>
+  <select id="modeSelect" onchange="updatePreview()"> 
+    <option value="plain">Plain‑vanilla</option>
+    <option value="combined">Combined mode</option>
+  </select>
+  <select id="langSelect">
+    <option value="zh-CN" selected>Chinese</option>
+    <option value="fr">French</option>
+    <option value="en">English</option>
+  </select>
+  <select id="translatorSelect">
+    <option value="google" selected>Google Translate</option>
+    <option value="deepl">DeepL</option>
+    <option value="papago">Papago</option>
+  </select>
+  <input type="range" id="fontSizeRange" min="16" max="28" value="20" title="Preview font size" onchange="changeFontSize(this.value)">
+  <button onclick="translateText()">🌐 Translate</button>
+  <button onclick="clearText()">🧹 Clear</button>
+  <button onclick="resetApiKey()">🔑 API Key</button>
+  <button onclick="formatTextarea()">🪄 Format</button>
+</div>
+<div class="container">
+  <textarea id="inputText" placeholder="Type or paste text here..."></textarea>
+  <div id="preview" class="preview">
+    <div class="spinner" id="spinner"></div>
+  </div>
+</div>
+<script>
+const ABBREVIATIONS=['Mr.','Mrs.','Ms.','Dr.','Prof.','Sr.','Jr.','St.','vs.','etc.','e.g.','i.e.','U.S.A.'];
+let currentIndex=0, sentences=[], cache={}, combinedTextCache={}, chineseVoiceCache=null, chineseVoiceAudio=null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  await checkApiKey();
+  const t=document.getElementById('inputText');
+  const saved=localStorage.getItem('saved_text');
+  if(saved) { t.value=saved; updatePreview(); }
+  t.addEventListener('input',()=>{
+    localStorage.setItem('saved_text',t.value);
+    updatePreview();
+  });
+  t.addEventListener('paste', function(e){
+    e.preventDefault();
+    let clipboardData = (e.clipboardData || window.clipboardData).getData('text');
+    let start = this.selectionStart;
+    let end = this.selectionEnd;
+    let oldText = this.value;
+    let newText = oldText.slice(0, start) + clipboardData + oldText.slice(end);
+    let formatted = formatTextSmartly(newText);
+    this.value = formatted;
+    this.selectionStart = this.selectionEnd = start + clipboardData.length;
+    localStorage.setItem('saved_text', formatted);
+    updatePreview();
+  });
+});
+
+async function checkApiKey(){
+  let k=localStorage.getItem('openai_api_key');
+  if(!k) { k=prompt("Enter your OpenAI API key:"); if(k) localStorage.setItem('openai_api_key',k); else alert("API key required."); }
+}
+function resetApiKey(){ localStorage.removeItem('openai_api_key'); checkApiKey(); }
+function clearText(){ document.getElementById('inputText').value=''; localStorage.removeItem('saved_text'); updatePreview(); }
+function changeFontSize(s){ document.getElementById('preview').style.fontSize=s+'px'; }
+function formatTextarea(){
+  const t=document.getElementById('inputText');
+  const formatted = formatTextSmartly(t.value);
+  t.value = formatted;
+  localStorage.setItem('saved_text', formatted);
+  updatePreview();
+}
+
+async function updatePreview(){
+  const mode=document.getElementById('modeSelect').value;
+  const text=document.getElementById('inputText').value.trim();
+  if(!text) { document.getElementById('preview').innerHTML='<div class="spinner" id="spinner"></div>'; return; }
+  if(mode==='plain') showPlain(text);
+  else if(mode==='combined') await showCombined(text);
+}
+
+function formatTextSmartly(text){
+  let tmp = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  ABBREVIATIONS.forEach(a=> tmp=tmp.replace(new RegExp(a.replace('.','\\.'),'g'), a.replace('.','<<DOT>>')));
+  let parts=tmp.split(/(?<=\.)[\s\n]+/).map(s=>{
+    ABBREVIATIONS.forEach(a=> s=s.replace(new RegExp(a.replace('.','<<DOT>>'),'g'),a));
+    return s.replace(/\s+/g,' ').trim();
+  }).filter(Boolean);
+  return parts.join('\n\n');
+}
+
+function showPlain(text){
+  let tmp = text;
+  ABBREVIATIONS.forEach(a=> tmp=tmp.replace(new RegExp(a.replace('.','\\.'),'g'), a.replace('.','<<DOT>>')));
+  let parts=tmp.split(/(?<=\.)[\s\n]+/).map(s=>{
+    ABBREVIATIONS.forEach(a=> s=s.replace(new RegExp(a.replace('.','<<DOT>>'),'g'),a));
+    return s.replace(/\s+/g,' ').trim();
+  }).filter(Boolean);
+  sentences=parts;
+  document.getElementById('preview').innerHTML=parts.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('')+'<div class="spinner" id="spinner"></div>';
+  attachClicks(); cache={}; currentIndex=0; highlightCurrent(); chineseVoiceCache=null; chineseVoiceAudio=null;
+}
+
+async function showCombined(text){
+  const sp=document.getElementById('spinner'); sp.style.display='block';
+  if(combinedTextCache.original===text){ displayCombined(combinedTextCache.combined); sp.style.display='none'; return; }
+  try{
+    const res=await callOpenAI(`Please merge and format this text into logical paragraphs:\n\n${text}`);
+    combinedTextCache={original:text,combined:res}; displayCombined(res);
+  }catch(e){ console.error(e); alert("Failed."); } finally{ sp.style.display='none'; }
+}
+
+async function callOpenAI(prompt){
+  const k=localStorage.getItem('openai_api_key');
+  const r=await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
+  body:JSON.stringify({model:"gpt-4o",messages:[{role:"system",content:"You are a helpful assistant."},{role:"user",content:prompt}],temperature:0.3})});
+  const d=await r.json(); return d.choices[0].message.content.trim();
+}
+
+function displayCombined(txt){
+  const paras=txt.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
+  sentences=paras;
+  document.getElementById('preview').innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('')+'<div class="spinner" id="spinner"></div>';
+  attachClicks(); cache={}; currentIndex=0; highlightCurrent(); chineseVoiceCache=null; chineseVoiceAudio=null;
+}
+
+function attachClicks(){ document.querySelectorAll('.sentence').forEach(s=> s.onclick=()=>{ currentIndex=+s.dataset.idx; highlightCurrent(); playSentence(currentIndex); }); }
+function highlightCurrent(){ document.querySelectorAll('.sentence').forEach((sp,i)=> sp.classList.toggle('active',i===currentIndex)); }
+
+async function playSentence(i){
+  if(cache[i]) new Audio(cache[i]).play();
+  else{
+    try{
+      const k=localStorage.getItem('openai_api_key');
+      const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
+      body:JSON.stringify({model:"tts-1",voice:"alloy",input:sentences[i]})});
+      const a=await r.arrayBuffer(); let u=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
+      cache[i]=u; new Audio(u).play();
+    }catch(e){ console.error(e); alert("Failed to speak."); }
+  }
+}
+
+async function playChineseVoice(){
+  const btn=document.getElementById('chineseVoiceBtn');
+  if(chineseVoiceAudio){
+    if(!chineseVoiceAudio.paused){ chineseVoiceAudio.pause(); btn.textContent='▶️ Chinese voice'; }
+    else{ chineseVoiceAudio.play(); btn.textContent='⏸ Pause'; }
+    return;
+  }
+  btn.textContent='⏳ Loading...';
+  const text=sentences.join(' ');
+  try{
+    const translation=await callOpenAI(`Translate this text into natural fluent Chinese:\n\n${text}`);
+    const k=localStorage.getItem('openai_api_key');
+    const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
+    body:JSON.stringify({model:"tts-1",voice:"alloy",input:translation})});
+    const a=await r.arrayBuffer(); let u=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
+    chineseVoiceCache=u; chineseVoiceAudio=new Audio(u);
+    chineseVoiceAudio.onended=()=>{ btn.textContent='🔊 Chinese voice'; };
+    chineseVoiceAudio.play(); btn.textContent='⏸ Pause';
+  }catch(e){ console.error(e); alert("Failed to speak in Chinese."); btn.textContent='🔊 Chinese voice'; }
+}
+
+function downloadChineseVoice(){
+  if(chineseVoiceCache){
+    const a=document.createElement('a');
+    a.href=chineseVoiceCache;
+    a.download='chinese_voice.mp3';
+    a.click();
+  }else{
+    alert("Please generate the Chinese voice first by clicking 'Chinese voice'.");
+  }
+}
+
+function translateText(){
+  const lang=document.getElementById('langSelect').value;
+  const translator=document.getElementById('translatorSelect').value;
+  const text=sentences.join('\n\n');
+  let url='';
+  if(translator==='google') url=`https://translate.google.com/?sl=auto&tl=${encodeURIComponent(lang)}&text=${encodeURIComponent(text)}&op=translate`;
+  else if(translator==='deepl') url=`https://www.deepl.com/translator#auto/${lang}/${encodeURIComponent(text)}`;
+  else if(translator==='papago') url=`https://papago.naver.com/?sk=auto&tk=${lang}&st=${encodeURIComponent(text)}`;
+  window.open(url,'_blank');
+}
+</script>
+</body>
+</html>
