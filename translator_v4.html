@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Text Tool (Voice & Translate)</title>
+<title>Smart Text Tool (Better Toolbar Icons)</title>
 <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -49,7 +49,7 @@
     z-index: 10; 
     border-radius: 8px;
   }
-  .toolbar button, .toolbar select { 
+  .toolbar button, .dropdown-wrapper { 
     background: var(--button-bg); 
     color: white; 
     border: none; 
@@ -58,8 +58,19 @@
     border-radius: 6px; 
     font-size: 14px; 
     transition: background 0.2s; 
+    display: flex; 
+    align-items: center;
   }
-  .toolbar button:hover, .toolbar select:hover { background: var(--button-hover); }
+  .toolbar button:hover, .dropdown-wrapper:hover { background: var(--button-hover); }
+  .dropdown-wrapper select { 
+    background: transparent; 
+    color: white; 
+    border: none; 
+    font-size: 14px; 
+    margin-left: 4px;
+    cursor: pointer;
+    appearance: none; /* remove default arrow */
+  }
   .toolbar-spacer { flex: 1; }
   .container { 
     flex: 1; 
@@ -105,20 +116,24 @@
 </head>
 <body>
 <div class="toolbar">
-  <span>🎤</span>
-  <select id="voiceSelect">
-    <option value="alloy" selected>Alloy</option>
-    <option value="fable">Fable</option>
-    <option value="onyx">Onyx</option>
-    <option value="nova">Nova</option>
-    <option value="shimmer">Shimmer</option>
-  </select>
-  <span>🌐</span>
-  <select id="langSelect">
-    <option value="zh-CN" selected>Chinese</option>
-    <option value="fr">French</option>
-    <option value="en">English</option>
-  </select>
+  <div class="dropdown-wrapper">
+    🎤
+    <select id="voiceSelect">
+      <option value="alloy" selected>Alloy</option>
+      <option value="fable">Fable</option>
+      <option value="onyx">Onyx</option>
+      <option value="nova">Nova</option>
+      <option value="shimmer">Shimmer</option>
+    </select>
+  </div>
+  <div class="dropdown-wrapper">
+    🌐
+    <select id="langSelect">
+      <option value="zh-CN" selected>Chinese</option>
+      <option value="fr">French</option>
+      <option value="en">English</option>
+    </select>
+  </div>
   <button onclick="translateText()">🌍 Translate</button>
   <button onclick="clearText()">🧹 Clear</button>
   <div class="toolbar-spacer"></div>
