@@ -3,12 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OpenAI Text Formatter</title>
+<title>OpenAI Text Formatter (Extended)</title>
 <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
 <style>
   body { margin:0; padding:0; display:flex; flex-direction:column; height:100vh; font-family:'Lato',sans-serif; }
-  .toolbar { background:#4285F4; color:white; padding:10px; display:flex; gap:10px; align-items:center; position:sticky; top:0; z-index:1; }
-  .toolbar button, .toolbar select { background:white; color:#4285F4; border:none; padding:6px 10px; cursor:pointer; border-radius:4px; }
+  .toolbar { background:#4285F4; color:white; padding:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; position:sticky; top:0; z-index:1; }
+  .toolbar button, .toolbar select, .toolbar label { background:white; color:#4285F4; border:none; padding:6px 10px; cursor:pointer; border-radius:4px; font-size:14px; }
+  .toolbar input[type="checkbox"] { margin-left:4px; }
   .container { flex:1; display:flex; gap:10px; padding:10px; box-sizing:border-box; }
   textarea { flex:1; resize:none; font-size:16px; line-height:1.6; padding:10px; background:#f7f7f7; color:#333; border:none; outline:none; }
   .preview { flex:1; padding:10px; background:#f7f7f7; overflow-y:auto; font-size:20px; line-height:1.8; position:relative; }
@@ -28,6 +29,10 @@
       <option value="plain">Plain‑vanilla</option>
       <option value="combined">Combined mode</option>
     </select>
+    <button onclick="formatTextarea()">📝 Format text</button>
+    <label>Auto‑format on paste <input type="checkbox" id="autoFormatToggle" checked></label>
+    <button onclick="clearText()">🧹 Clear</button>
+    <button onclick="exportText()">💾 Export</button>
     <button onclick="resetApiKey()">🔑 API Key</button>
     <button onclick="toggleTheme()">🌓 Theme</button>
   </div>
@@ -41,8 +46,11 @@ let currentIndex=0; let sentences=[]; let cache={}; let combinedTextCache={};
 document.addEventListener('DOMContentLoaded',async()=>{
   await checkApiKey();
   const t=document.getElementById('inputText');
-  t.addEventListener('input',()=>{formatTextarea();updatePreview();});
-  t.addEventListener('paste',()=>{setTimeout(()=>{formatTextarea();updatePreview();},50);});
+  const autoToggle=document.getElementById('autoFormatToggle');
+  t.addEventListener('input',()=>{ updatePreview(); });
+  t.addEventListener('paste',()=>{ 
+    setTimeout(()=>{ if(autoToggle.checked){ formatTextarea(); } updatePreview(); },50); 
+  });
   if(localStorage.getItem('theme')==='dark')document.body.classList.add('dark');
 });
 
@@ -57,14 +65,26 @@ function toggleTheme(){
 }
 function formatTextarea(){
   const t=document.getElementById('inputText'); let txt=t.value.trim(); if(!txt)return;
-  txt=txt.replace(/\s+/g,' ');
+  txt=txt.replace(/\s+/g,' '); 
   let parts=txt.split(/(?<=[.?!。！？])/).map(s=>s.trim()).filter(Boolean);
   t.value=parts.join('\n\n');
+  updatePreview();
+}
+function clearText(){
+  document.getElementById('inputText').value='';
+  updatePreview();
+}
+function exportText(){
+  const text=document.getElementById('inputText').value;
+  const blob=new Blob([text],{type:"text/plain"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url;a.download='text.txt';a.click();
+  URL.revokeObjectURL(url);
 }
 async function updatePreview(){
   const mode=document.getElementById('modeSelect').value;
   const text=document.getElementById('inputText').value.trim();
-  if(!text)return;
+  if(!text){ document.getElementById('preview').innerHTML=''; return; }
   if(mode==='plain'){showPlain(text);}
   else if(mode==='combined'){await showCombined(text);}
 }
