@@ -139,4 +139,69 @@ async function callOpenAI(prompt){
 
 function displayCombined(txt){
   const paras=txt.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
-  sent
+  sentences=paras;
+  document.getElementById('preview').innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('')+'<div class="spinner" id="spinner"></div>';
+  attachClicks(); cache={}; currentIndex=0; highlightCurrent(); chineseVoiceCache=null; chineseVoiceAudio=null;
+}
+
+function attachClicks(){ document.querySelectorAll('.sentence').forEach(s=> s.onclick=()=>{ currentIndex=+s.dataset.idx; highlightCurrent(); playSentence(currentIndex); }); }
+function highlightCurrent(){ document.querySelectorAll('.sentence').forEach((sp,i)=> sp.classList.toggle('active',i===currentIndex)); }
+
+async function playSentence(i){
+  if(cache[i]) new Audio(cache[i]).play();
+  else{
+    try{
+      const k=localStorage.getItem('openai_api_key');
+      const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
+      body:JSON.stringify({model:"tts-1",voice:"alloy",input:sentences[i]})});
+      const a=await r.arrayBuffer(); let u=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
+      cache[i]=u; new Audio(u).play();
+    }catch(e){ console.error(e); alert("Failed to speak."); }
+  }
+}
+
+async function playChineseVoice(){
+  const btn=document.getElementById('chineseVoiceBtn');
+  if(chineseVoiceAudio){
+    if(!chineseVoiceAudio.paused){ chineseVoiceAudio.pause(); btn.textContent='▶️ Chinese voice'; }
+    else{ chineseVoiceAudio.play(); btn.textContent='⏸ Pause'; }
+    return;
+  }
+  btn.textContent='⏳ Loading...';
+  const text=sentences.join(' ');
+  try{
+    const translation=await callOpenAI(`Translate this text into natural fluent Chinese:\n\n${text}`);
+    const k=localStorage.getItem('openai_api_key');
+    const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
+    body:JSON.stringify({model:"tts-1",voice:"alloy",input:translation})});
+    const a=await r.arrayBuffer(); let u=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
+    chineseVoiceCache=u; chineseVoiceAudio=new Audio(u);
+    chineseVoiceAudio.onended=()=>{ btn.textContent='🔊 Chinese voice'; };
+    chineseVoiceAudio.play(); btn.textContent='⏸ Pause';
+  }catch(e){ console.error(e); alert("Failed to speak in Chinese."); btn.textContent='🔊 Chinese voice'; }
+}
+
+function downloadChineseVoice(){
+  if(chineseVoiceCache){
+    const a=document.createElement('a');
+    a.href=chineseVoiceCache;
+    a.download='chinese_voice.mp3';
+    a.click();
+  }else{
+    alert("Please generate the Chinese voice first by clicking 'Chinese voice'.");
+  }
+}
+
+function translateText(){
+  const lang=document.getElementById('langSelect').value;
+  const translator=document.getElementById('translatorSelect').value;
+  const text=sentences.join('\n\n');
+  let url='';
+  if(translator==='google') url=`https://translate.google.com/?sl=auto&tl=${encodeURIComponent(lang)}&text=${encodeURIComponent(text)}&op=translate`;
+  else if(translator==='deepl') url=`https://www.deepl.com/translator#auto/${lang}/${encodeURIComponent(text)}`;
+  else if(translator==='papago') url=`https://papago.naver.com/?sk=auto&tk=${lang}&st=${encodeURIComponent(text)}`;
+  window.open(url,'_blank');
+}
+</script>
+</body>
+</html>
