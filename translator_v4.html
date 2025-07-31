@@ -33,11 +33,6 @@
     <option value="fr">French</option>
     <option value="en">English</option>
   </select>
-  <select id="translatorSelect">
-    <option value="google" selected>Google Translate</option>
-    <option value="deepl">DeepL</option>
-    <option value="papago">Papago</option>
-  </select>
   <button onclick="translateText()">🌐 Translate</button>
   <button onclick="clearText()">🧹 Clear</button>
   <button onclick="resetApiKey()">🔑 API Key</button>
@@ -194,12 +189,8 @@ function downloadChineseVoice(){
 
 function translateText(){
   const lang=document.getElementById('langSelect').value;
-  const translator=document.getElementById('translatorSelect').value;
   const text=sentences.join('\n\n');
-  let url='';
-  if(translator==='google') url=`https://translate.google.com/?sl=auto&tl=${encodeURIComponent(lang)}&text=${encodeURIComponent(text)}&op=translate`;
-  else if(translator==='deepl') url=`https://www.deepl.com/translator#auto/${lang}/${encodeURIComponent(text)}`;
-  else if(translator==='papago') url=`https://papago.naver.com/?sk=auto&tk=${lang}&st=${encodeURIComponent(text)}`;
+  let url=`https://translate.google.com/?sl=auto&tl=${encodeURIComponent(lang)}&text=${encodeURIComponent(text)}&op=translate`;
   window.open(url,'_blank');
 }
 </script>
