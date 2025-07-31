@@ -66,12 +66,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   t.addEventListener('paste', function(e){
     e.preventDefault();
     let clipboardData = (e.clipboardData || window.clipboardData).getData('text');
-    let formatted = formatTextSmartly(clipboardData);
     let start = this.selectionStart;
     let end = this.selectionEnd;
     let oldText = this.value;
-    this.value = oldText.slice(0, start) + formatted + oldText.slice(end);
-    this.selectionStart = this.selectionEnd = start + formatted.length;
+
+    // Insert raw pasted text at cursor position
+    let newText = oldText.slice(0, start) + clipboardData + oldText.slice(end);
+
+    // Format the entire text after insertion
+    let formatted = formatTextSmartly(newText);
+
+    this.value = formatted;
+    this.selectionStart = this.selectionEnd = start + clipboardData.length;
+
     localStorage.setItem('saved_text', this.value);
     updatePreview();
   });
