@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Text Tool (Dark Mode)</title>
+<title>Smart Text Tool (Toggle Dark/Light)</title>
 <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -16,17 +16,15 @@
     --textarea-color: #555;
     --preview-bg: #fff;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #121212;
-      --fg: #e0e0e0;
-      --toolbar-bg: #1e1e1e;
-      --button-bg: #3a75d4;
-      --button-hover: #2a5ca8;
-      --textarea-bg: #1e1e1e;
-      --textarea-color: #ccc;
-      --preview-bg: #1e1e1e;
-    }
+  body.dark {
+    --bg: #121212;
+    --fg: #e0e0e0;
+    --toolbar-bg: #1e1e1e;
+    --button-bg: #3a75d4;
+    --button-hover: #2a5ca8;
+    --textarea-bg: #1e1e1e;
+    --textarea-color: #ccc;
+    --preview-bg: #1e1e1e;
   }
   body { margin:0; padding:0; display:flex; flex-direction:column; height:100vh; background:var(--bg); color:var(--fg); font-family:'Open Sans',sans-serif; }
   .toolbar { background:var(--toolbar-bg); padding:8px 12px; display:flex; gap:8px; align-items:center; box-shadow:0 1px 4px rgba(0,0,0,0.1); position:sticky; top:0; z-index:10; }
@@ -44,6 +42,7 @@
 </head>
 <body>
 <div class="toolbar">
+  <button onclick="toggleTheme()">🌓 Toggle Theme</button>
   <select id="voiceSelect">
     <option value="alloy" selected>Alloy</option>
     <option value="fable">Fable</option>
@@ -63,7 +62,6 @@
   <button onclick="translateText()">🌐 Translate</button>
   <button onclick="clearText()">🧹 Clear</button>
   <button onclick="resetApiKey()">🔑 API Key</button>
-  <button onclick="formatTextarea()">🪄 Format</button>
 </div>
 <div class="container">
   <textarea id="inputText" placeholder="Type or paste text here..."></textarea>
@@ -77,6 +75,7 @@ let sentences=[], cache={}, combinedTextCache={}, currentIndex=0;
 
 document.addEventListener('DOMContentLoaded', async () => {
   await checkApiKey();
+  initTheme();
   const t=document.getElementById('inputText');
   const saved=localStorage.getItem('saved_text');
   if(saved) { t.value=saved; updatePreview(); }
@@ -86,9 +85,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     updatePreview();
   });
 
+  // ✅ formatting on paste
   t.addEventListener('paste', function(e){
     e.preventDefault();
     let clipboardData = (e.clipboardData || window.clipboardData).getData('text');
+    // simple formatting: replace multiple spaces, ensure periods followed by space split sentences
+    clipboardData = clipboardData.replace(/([.?!])(\s|\n)+/g, "$1\n\n").replace(/[ ]+/g,' ').trim();
     let start = this.selectionStart;
     let end = this.selectionEnd;
     let oldText = this.value;
@@ -105,7 +107,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const start=t.selectionStart, end=t.selectionEnd;
       if(start !== end){
         let selected = t.value.substring(start,end);
-        selected = selected.replace(/\n\s*\n+/g,' '); 
+        selected = selected.replace(/\n\s*\n+/g,' ');
         t.value = t.value.slice(0,start) + selected + t.value.slice(end);
         t.selectionStart=start;
         t.selectionEnd=start+selected.length;
@@ -116,19 +118,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 });
 
+function toggleTheme(){
+  document.body.classList.toggle('dark');
+  localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+}
+function initTheme(){
+  const saved=localStorage.getItem('theme');
+  if(saved==='dark') document.body.classList.add('dark');
+}
+
 async function checkApiKey(){
   let k=localStorage.getItem('openai_api_key');
   if(!k) { k=prompt("Enter your OpenAI API key:"); if(k) localStorage.setItem('openai_api_key',k); else alert("API key required."); }
 }
 function resetApiKey(){ localStorage.removeItem('openai_api_key'); checkApiKey(); }
 function clearText(){ document.getElementById('inputText').value=''; localStorage.removeItem('saved_text'); updatePreview(); }
-function formatTextarea(){
-  const t=document.getElementById('inputText');
-  const formatted = t.value.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/[ ]+/g,' ').trim();
-  t.value = formatted;
-  localStorage.setItem('saved_text', formatted);
-  updatePreview();
-}
 
 async function updatePreview(){
   const mode=document.getElementById('modeSelect').value;
@@ -139,7 +143,7 @@ async function updatePreview(){
 }
 
 function showPlain(text){
-  let paras=text.split(/\n\s*\n/).map(p=>p.replace(/\s+/g,' ').trim()).filter(Boolean);
+  let paras=text.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
   sentences=paras;
   document.getElementById('preview').innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('');
   attachClicks(); cache={}; currentIndex=0; highlightCurrent();
