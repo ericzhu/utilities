@@ -25,7 +25,7 @@
   <button onclick="playPrevious()">⏮ Prev</button>
   <button onclick="playCurrent()">▶️ Current</button>
   <button onclick="playNext()">⏭ Next</button>
-  <button onclick="playChineseVoice()">🔊 Chinese voice</button>
+  <button id="chineseVoiceBtn" onclick="playChineseVoice()">🔊 Chinese voice</button>
   <button onclick="downloadChineseVoice()">⬇️ Download MP3</button>
   <select id="modeSelect" onchange="updatePreview()"> 
     <option value="plain">Plain‑vanilla</option>
@@ -54,7 +54,7 @@
 </div>
 <script>
 const ABBREVIATIONS=['Mr.','Mrs.','Ms.','Dr.','Prof.','Sr.','Jr.','St.','vs.','etc.','e.g.','i.e.','U.S.A.'];
-let currentIndex=0, sentences=[], cache={}, combinedTextCache={}, chineseVoiceCache=null;
+let currentIndex=0, sentences=[], cache={}, combinedTextCache={}, chineseVoiceCache=null, chineseVoiceAudio=null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   await checkApiKey();
@@ -107,7 +107,7 @@ function showPlain(text){
   }).filter(Boolean);
   sentences=parts;
   document.getElementById('preview').innerHTML=parts.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('')+'<div class="spinner" id="spinner"></div>';
-  attachClicks(); cache={}; currentIndex=0; highlightCurrent(); chineseVoiceCache=null;
+  attachClicks(); cache={}; currentIndex=0; highlightCurrent(); chineseVoiceCache=null; chineseVoiceAudio=null;
 }
 
 async function showCombined(text){
@@ -130,7 +130,7 @@ function displayCombined(txt){
   const paras=txt.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
   sentences=paras;
   document.getElementById('preview').innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('')+'<div class="spinner" id="spinner"></div>';
-  attachClicks(); cache={}; currentIndex=0; highlightCurrent(); chineseVoiceCache=null;
+  attachClicks(); cache={}; currentIndex=0; highlightCurrent(); chineseVoiceCache=null; chineseVoiceAudio=null;
 }
 
 function attachClicks(){ document.querySelectorAll('.sentence').forEach(s=> s.onclick=()=>{ currentIndex=+s.dataset.idx; highlightCurrent(); playSentence(currentIndex); }); }
@@ -153,7 +153,13 @@ function playPrevious(){ if(sentences.length){ currentIndex=Math.max(0,currentIn
 function playNext(){ if(sentences.length){ currentIndex=Math.min(sentences.length-1,currentIndex+1); highlightCurrent(); playSentence(currentIndex); } }
 
 async function playChineseVoice(){
-  if(chineseVoiceCache){ new Audio(chineseVoiceCache).play(); return; }
+  const btn=document.getElementById('chineseVoiceBtn');
+  if(chineseVoiceAudio){
+    if(!chineseVoiceAudio.paused){ chineseVoiceAudio.pause(); btn.textContent='▶️ Chinese voice'; }
+    else{ chineseVoiceAudio.play(); btn.textContent='⏸ Pause'; }
+    return;
+  }
+  btn.textContent='⏳ Loading...';
   const text=sentences.join(' ');
   try{
     const translation=await callOpenAI(`Translate this text into natural fluent Chinese:\n\n${text}`);
@@ -161,8 +167,10 @@ async function playChineseVoice(){
     const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
     body:JSON.stringify({model:"tts-1",voice:"alloy",input:translation})});
     const a=await r.arrayBuffer(); let u=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
-    chineseVoiceCache=u; new Audio(u).play();
-  }catch(e){ console.error(e); alert("Failed to speak in Chinese."); }
+    chineseVoiceCache=u; chineseVoiceAudio=new Audio(u);
+    chineseVoiceAudio.onended=()=>{ btn.textContent='🔊 Chinese voice'; };
+    chineseVoiceAudio.play(); btn.textContent='⏸ Pause';
+  }catch(e){ console.error(e); alert("Failed to speak in Chinese."); btn.textContent='🔊 Chinese voice'; }
 }
 
 function downloadChineseVoice(){
