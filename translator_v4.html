@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Text Tool (Better Layout)</title>
+<title>Smart Text Tool (Voice & Translate)</title>
 <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -101,25 +101,11 @@
   }
   .sentence:hover { background: rgba(66,133,244,0.15); }
   .active { background: rgba(66,133,244,0.25); }
-  .spinner { 
-    position: absolute; 
-    top: 50%; 
-    left: 50%; 
-    width: 40px; 
-    height: 40px; 
-    border: 4px solid #ccc; 
-    border-top: 4px solid #4285F4; 
-    border-radius: 50%; 
-    animation: spin 1s linear infinite; 
-    transform: translate(-50%,-50%); 
-    display: none; 
-    z-index: 2; 
-  }
-  @keyframes spin { to { transform: translate(-50%,-50%) rotate(360deg); } }
 </style>
 </head>
 <body>
 <div class="toolbar">
+  <span>🎤</span>
   <select id="voiceSelect">
     <option value="alloy" selected>Alloy</option>
     <option value="fable">Fable</option>
@@ -127,16 +113,13 @@
     <option value="nova">Nova</option>
     <option value="shimmer">Shimmer</option>
   </select>
-  <select id="modeSelect" onchange="updatePreview()"> 
-    <option value="plain">Plain‑vanilla</option>
-    <option value="combined">Combined mode</option>
-  </select>
+  <span>🌐</span>
   <select id="langSelect">
     <option value="zh-CN" selected>Chinese</option>
     <option value="fr">French</option>
     <option value="en">English</option>
   </select>
-  <button onclick="translateText()">🌐 Translate</button>
+  <button onclick="translateText()">🌍 Translate</button>
   <button onclick="clearText()">🧹 Clear</button>
   <div class="toolbar-spacer"></div>
   <button onclick="toggleTheme()">🌓 Toggle Theme</button>
@@ -144,13 +127,11 @@
 </div>
 <div class="container">
   <textarea id="inputText" placeholder="Type or paste text here..."></textarea>
-  <div id="preview" class="preview">
-    <div class="spinner" id="spinner"></div>
-  </div>
+  <div id="preview" class="preview"></div>
 </div>
 
 <script>
-let sentences=[], cache={}, combinedTextCache={}, currentIndex=0;
+let sentences=[], cache={}, currentIndex=0;
 
 document.addEventListener('DOMContentLoaded', async () => {
   await checkApiKey();
@@ -210,45 +191,18 @@ async function checkApiKey(){
 function resetApiKey(){ localStorage.removeItem('openai_api_key'); checkApiKey(); }
 function clearText(){ document.getElementById('inputText').value=''; localStorage.removeItem('saved_text'); updatePreview(); }
 
-async function updatePreview(){
-  const mode=document.getElementById('modeSelect').value;
+function updatePreview(){
   const text=document.getElementById('inputText').value.trim();
   if(!text) { document.getElementById('preview').innerHTML=''; return; }
-  if(mode==='plain') showPlain(text);
-  else if(mode==='combined') await showCombined(text);
-}
-
-function showPlain(text){
   let paras=text.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
   sentences=paras;
   document.getElementById('preview').innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('');
   attachClicks(); cache={}; currentIndex=0; highlightCurrent();
 }
 
-async function showCombined(text){
-  const sp=document.getElementById('spinner'); sp.style.display='block';
-  if(combinedTextCache.original===text){ displayCombined(combinedTextCache.combined); sp.style.display='none'; return; }
-  try{
-    const res=await callOpenAI(`Please merge and format this text into logical paragraphs:\n\n${text}`);
-    combinedTextCache={original:text,combined:res}; displayCombined(res);
-  }catch(e){ console.error(e); alert("Failed."); } finally{ sp.style.display='none'; }
+function attachClicks(){
+  document.querySelectorAll('.sentence').forEach(s=> s.onclick=()=>{ currentIndex=+s.dataset.idx; highlightCurrent(); playSentence(currentIndex); });
 }
-
-async function callOpenAI(prompt){
-  const k=localStorage.getItem('openai_api_key');
-  const r=await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
-  body:JSON.stringify({model:"gpt-4o",messages:[{role:"user",content:prompt}]})});
-  const d=await r.json(); return d.choices[0].message.content.trim();
-}
-
-function displayCombined(txt){
-  const paras=txt.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
-  sentences=paras;
-  document.getElementById('preview').innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('');
-  attachClicks(); cache={}; currentIndex=0; highlightCurrent();
-}
-
-function attachClicks(){ document.querySelectorAll('.sentence').forEach(s=> s.onclick=()=>{ currentIndex=+s.dataset.idx; highlightCurrent(); playSentence(currentIndex); }); }
 function highlightCurrent(){ document.querySelectorAll('.sentence').forEach((sp,i)=> sp.classList.toggle('active',i===currentIndex)); }
 
 async function playSentence(i){
