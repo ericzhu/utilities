@@ -52,8 +52,7 @@
   </div>
 </div>
 <script>
-const ABBREVIATIONS=['Mr.','Mrs.','Ms.','Dr.','Prof.','Sr.','Jr.','St.','vs.','etc.','e.g.','i.e.','U.S.A.'];
-let currentIndex=0, sentences=[], cache={}, combinedTextCache={}, chineseVoiceCache=null, chineseVoiceAudio=null;
+let sentences=[], cache={}, combinedTextCache={}, chineseVoiceCache=null, chineseVoiceAudio=null, currentIndex=0;
 
 document.addEventListener('DOMContentLoaded', async () => {
   await checkApiKey();
@@ -71,10 +70,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     let end = this.selectionEnd;
     let oldText = this.value;
     let newText = oldText.slice(0, start) + clipboardData + oldText.slice(end);
-    let formatted = formatTextSmartly(newText);
-    this.value = formatted;
-    this.selectionStart = this.selectionEnd = start + clipboardData.length;
-    localStorage.setItem('saved_text', formatted);
+    this.value = newText;
+    localStorage.setItem('saved_text', newText);
     updatePreview();
   });
 });
@@ -87,7 +84,7 @@ function resetApiKey(){ localStorage.removeItem('openai_api_key'); checkApiKey()
 function clearText(){ document.getElementById('inputText').value=''; localStorage.removeItem('saved_text'); updatePreview(); }
 function formatTextarea(){
   const t=document.getElementById('inputText');
-  const formatted = formatTextSmartly(t.value);
+  const formatted = t.value.replace(/\r\n/g, '\n').replace(/\r/g, '\n').replace(/[ ]+/g,' ').trim();
   t.value = formatted;
   localStorage.setItem('saved_text', formatted);
   updatePreview();
@@ -96,30 +93,16 @@ function formatTextarea(){
 async function updatePreview(){
   const mode=document.getElementById('modeSelect').value;
   const text=document.getElementById('inputText').value.trim();
-  if(!text) { document.getElementById('preview').innerHTML='<div class="spinner" id="spinner"></div>'; return; }
+  if(!text) { document.getElementById('preview').innerHTML=''; return; }
   if(mode==='plain') showPlain(text);
   else if(mode==='combined') await showCombined(text);
 }
 
-function formatTextSmartly(text){
-  let tmp = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  ABBREVIATIONS.forEach(a=> tmp=tmp.replace(new RegExp(a.replace('.','\\.'),'g'), a.replace('.','<<DOT>>')));
-  let parts=tmp.split(/(?<=\.)[\s\n]+/).map(s=>{
-    ABBREVIATIONS.forEach(a=> s=s.replace(new RegExp(a.replace('.','<<DOT>>'),'g'),a));
-    return s.replace(/\s+/g,' ').trim();
-  }).filter(Boolean);
-  return parts.join('\n\n');
-}
-
 function showPlain(text){
-  let tmp = text;
-  ABBREVIATIONS.forEach(a=> tmp=tmp.replace(new RegExp(a.replace('.','\\.'),'g'), a.replace('.','<<DOT>>')));
-  let parts=tmp.split(/(?<=\.)[\s\n]+/).map(s=>{
-    ABBREVIATIONS.forEach(a=> s=s.replace(new RegExp(a.replace('.','<<DOT>>'),'g'),a));
-    return s.replace(/\s+/g,' ').trim();
-  }).filter(Boolean);
-  sentences=parts;
-  document.getElementById('preview').innerHTML=parts.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('')+'<div class="spinner" id="spinner"></div>';
+  // Split by blank line: paragraphs
+  let paras=text.split(/\n\s*\n/).map(p=>p.replace(/\s+/g,' ').trim()).filter(Boolean);
+  sentences=paras;
+  document.getElementById('preview').innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('');
   attachClicks(); cache={}; currentIndex=0; highlightCurrent(); chineseVoiceCache=null; chineseVoiceAudio=null;
 }
 
@@ -135,14 +118,14 @@ async function showCombined(text){
 async function callOpenAI(prompt){
   const k=localStorage.getItem('openai_api_key');
   const r=await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
-  body:JSON.stringify({model:"gpt-4o",messages:[{role:"system",content:"You are a helpful assistant."},{role:"user",content:prompt}],temperature:0.3})});
+  body:JSON.stringify({model:"gpt-4o",messages:[{role:"user",content:prompt}]})});
   const d=await r.json(); return d.choices[0].message.content.trim();
 }
 
 function displayCombined(txt){
   const paras=txt.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
   sentences=paras;
-  document.getElementById('preview').innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('')+'<div class="spinner" id="spinner"></div>';
+  document.getElementById('preview').innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('');
   attachClicks(); cache={}; currentIndex=0; highlightCurrent(); chineseVoiceCache=null; chineseVoiceAudio=null;
 }
 
