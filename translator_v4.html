@@ -24,6 +24,13 @@
 <div class="toolbar">
   <button id="chineseVoiceBtn" onclick="playChineseVoice()">🔊 Chinese voice</button>
   <button onclick="downloadChineseVoice()">⬇️ Download MP3</button>
+  <select id="voiceSelect">
+    <option value="alloy" selected>Alloy</option>
+    <option value="fable">Fable</option>
+    <option value="onyx">Onyx</option>
+    <option value="nova">Nova</option>
+    <option value="shimmer">Shimmer</option>
+  </select>
   <select id="modeSelect" onchange="updatePreview()"> 
     <option value="plain">Plain‑vanilla</option>
     <option value="combined">Combined mode</option>
@@ -143,12 +150,13 @@ function attachClicks(){ document.querySelectorAll('.sentence').forEach(s=> s.on
 function highlightCurrent(){ document.querySelectorAll('.sentence').forEach((sp,i)=> sp.classList.toggle('active',i===currentIndex)); }
 
 async function playSentence(i){
+  const voice=document.getElementById('voiceSelect').value;
   if(cache[i]) new Audio(cache[i]).play();
   else{
     try{
       const k=localStorage.getItem('openai_api_key');
       const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
-      body:JSON.stringify({model:"tts-1",voice:"alloy",input:sentences[i]})});
+      body:JSON.stringify({model:"tts-1",voice:voice,input:sentences[i]})});
       const a=await r.arrayBuffer(); let u=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
       cache[i]=u; new Audio(u).play();
     }catch(e){ console.error(e); alert("Failed to speak."); }
@@ -166,9 +174,10 @@ async function playChineseVoice(){
   const text=sentences.join(' ');
   try{
     const translation=await callOpenAI(`Translate this text into natural fluent Chinese:\n\n${text}`);
+    const voice=document.getElementById('voiceSelect').value;
     const k=localStorage.getItem('openai_api_key');
     const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
-    body:JSON.stringify({model:"tts-1",voice:"alloy",input:translation})});
+    body:JSON.stringify({model:"tts-1",voice:voice,input:translation})});
     const a=await r.arrayBuffer(); let u=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
     chineseVoiceCache=u; chineseVoiceAudio=new Audio(u);
     chineseVoiceAudio.onended=()=>{ btn.textContent='🔊 Chinese voice'; };
