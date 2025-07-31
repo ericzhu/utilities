@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OpenAI Text Formatter (Speech Mode)</title>
+<title>OpenAI Text Formatter</title>
 <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
 <style>
   body { margin:0; padding:0; display:flex; flex-direction:column; height:100vh; font-family:'Lato',sans-serif; }
@@ -11,8 +11,8 @@
   .toolbar button, .toolbar select { background:white; color:#4285F4; border:none; padding:6px 10px; cursor:pointer; border-radius:4px; }
   .container { flex:1; display:flex; gap:10px; padding:10px; box-sizing:border-box; }
   textarea { flex:1; resize:none; font-size:16px; line-height:1.6; padding:10px; background:#f7f7f7; color:#333; border:none; outline:none; }
-  .preview { flex:1; padding:10px; background:#f7f7f7; overflow-y:auto; font-size:16px; line-height:1.6; position:relative; }
-  .sentence { display:block; margin-bottom:16px; cursor:pointer; padding:2px 4px; border-radius:3px; }
+  .preview { flex:1; padding:10px; background:#f7f7f7; overflow-y:auto; font-size:20px; line-height:1.8; position:relative; }
+  .sentence { display:block; margin-bottom:18px; cursor:pointer; padding:2px 4px; border-radius:3px; }
   .sentence:hover { background:rgba(66,133,244,0.2); }
   .active { background:rgba(66,133,244,0.4); }
   .spinner { position:absolute; top:50%; left:50%; width:40px; height:40px; border:4px solid #ccc; border-top:4px solid #4285F4; border-radius:50%; animation:spin 1s linear infinite; transform:translate(-50%,-50%); display:none; z-index:2; }
@@ -27,7 +27,6 @@
     <select id="modeSelect" onchange="updatePreview()"> 
       <option value="plain">Plain‑vanilla</option>
       <option value="combined">Combined mode</option>
-      <option value="speech">Speech mode</option>
     </select>
     <button onclick="resetApiKey()">🔑 API Key</button>
     <button onclick="toggleTheme()">🌓 Theme</button>
@@ -37,82 +36,88 @@
     <div id="preview" class="preview"><div class="spinner" id="spinner"></div></div>
   </div>
 <script>
-let currentIndex=0; let sentences=[]; let cache={}; let combinedTextCache={}; let speechTextCache={};
+let currentIndex=0; let sentences=[]; let cache={}; let combinedTextCache={};
 
-document.addEventListener('DOMContentLoaded',async()=>{await checkApiKey();
-let t=document.getElementById('inputText');
-t.addEventListener('input',()=>{formatTextarea();updatePreview();});
-t.addEventListener('paste',()=>{setTimeout(()=>{formatTextarea();updatePreview();},50);});
-if(localStorage.getItem('theme')==='dark')document.body.classList.add('dark');});
+document.addEventListener('DOMContentLoaded',async()=>{
+  await checkApiKey();
+  const t=document.getElementById('inputText');
+  t.addEventListener('input',()=>{formatTextarea();updatePreview();});
+  t.addEventListener('paste',()=>{setTimeout(()=>{formatTextarea();updatePreview();},50);});
+  if(localStorage.getItem('theme')==='dark')document.body.classList.add('dark');
+});
 
 async function checkApiKey(){
-let k=localStorage.getItem('openai_api_key');
-if(!k){k=prompt("Enter your OpenAI API key:"); if(k)localStorage.setItem('openai_api_key',k);else alert("API key required.");}}
-
-function resetApiKey(){localStorage.removeItem('openai_api_key');checkApiKey();}
-function toggleTheme(){document.body.classList.toggle('dark');localStorage.setItem('theme',document.body.classList.contains('dark')?'dark':'light');}
-
-function formatTextarea(){
-let t=document.getElementById('inputText'); let txt=t.value.trim(); if(!txt)return;
-txt=txt.replace(/\s+/g,' '); let parts=txt.split(/(?<=[.?!。！？])/).map(s=>s.trim()).filter(Boolean);
-t.value=parts.join('\n\n');}
-
-async function updatePreview(){
-const mode=document.getElementById('modeSelect').value;
-const text=document.getElementById('inputText').value.trim();
-if(!text)return;
-if(mode==='plain'){showPlain(text);}
-else if(mode==='combined'){await showCombined(text);}
-else if(mode==='speech'){await showSpeech(text);}
+  let k=localStorage.getItem('openai_api_key');
+  if(!k){k=prompt("Enter your OpenAI API key:"); if(k)localStorage.setItem('openai_api_key',k);else alert("API key required.");}
 }
-
+function resetApiKey(){localStorage.removeItem('openai_api_key');checkApiKey();}
+function toggleTheme(){
+  document.body.classList.toggle('dark');
+  localStorage.setItem('theme',document.body.classList.contains('dark')?'dark':'light');
+}
+function formatTextarea(){
+  const t=document.getElementById('inputText'); let txt=t.value.trim(); if(!txt)return;
+  txt=txt.replace(/\s+/g,' ');
+  let parts=txt.split(/(?<=[.?!。！？])/).map(s=>s.trim()).filter(Boolean);
+  t.value=parts.join('\n\n');
+}
+async function updatePreview(){
+  const mode=document.getElementById('modeSelect').value;
+  const text=document.getElementById('inputText').value.trim();
+  if(!text)return;
+  if(mode==='plain'){showPlain(text);}
+  else if(mode==='combined'){await showCombined(text);}
+}
 function showPlain(text){
-const paras=text.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean); sentences=paras;
-let p=document.getElementById('preview');
-p.innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('')+'<div class="spinner" id="spinner"></div>';
-attachClicks();cache={};currentIndex=0;highlightCurrent();}
-
+  const paras=text.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
+  sentences=paras;
+  const p=document.getElementById('preview');
+  p.innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('')+'<div class="spinner" id="spinner"></div>';
+  attachClicks();cache={};currentIndex=0;highlightCurrent();
+}
 async function showCombined(text){
-let sp=document.getElementById('spinner');sp.style.display='block';
-if(combinedTextCache.original===text){displayCombined(combinedTextCache.combined);sp.style.display='none';return;}
-try{
-const res=await callOpenAI(`Please merge and format this text into logical paragraphs:\n\n${text}`);
-combinedTextCache={original:text,combined:res}; displayCombined(res);
-}catch(e){console.error(e);alert("Failed.");}finally{sp.style.display='none';}}
-
-async function showSpeech(text){
-let sp=document.getElementById('spinner');sp.style.display='block';
-if(speechTextCache.original===text){displayCombined(speechTextCache.combined);sp.style.display='none';return;}
-try{
-const prompt=`Please reformat the following text into short speech‑friendly paragraphs suitable for reading aloud, making sure each paragraph is short enough to speak comfortably without needing to take a breath in the middle.\n\nText:\n${text}`;
-const res=await callOpenAI(prompt);
-speechTextCache={original:text,combined:res}; displayCombined(res);
-}catch(e){console.error(e);alert("Failed.");}finally{sp.style.display='none';}}
-
-async function callOpenAI(userPrompt){
-const apiKey=localStorage.getItem('openai_api_key');
-const r=await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",
-headers:{"Authorization":"Bearer "+apiKey,"Content-Type":"application/json"},
-body:JSON.stringify({model:"gpt-4o",messages:[{role:"system",content:"You are a helpful assistant."},{role:"user",content:userPrompt}],temperature:0.3})});
-const d=await r.json(); return d.choices[0].message.content.trim();}
-
+  const sp=document.getElementById('spinner');sp.style.display='block';
+  if(combinedTextCache.original===text){displayCombined(combinedTextCache.combined);sp.style.display='none';return;}
+  try{
+    const res=await callOpenAI(`Please merge and format this text into logical paragraphs:\n\n${text}`);
+    combinedTextCache={original:text,combined:res}; displayCombined(res);
+  }catch(e){console.error(e);alert("Failed.");}finally{sp.style.display='none';}
+}
+async function callOpenAI(prompt){
+  const apiKey=localStorage.getItem('openai_api_key');
+  const r=await fetch("https://api.openai.com/v1/chat/completions",{method:"POST",
+  headers:{"Authorization":"Bearer "+apiKey,"Content-Type":"application/json"},
+  body:JSON.stringify({model:"gpt-4o",messages:[{role:"system",content:"You are a helpful assistant."},{role:"user",content:prompt}],temperature:0.3})});
+  const d=await r.json(); return d.choices[0].message.content.trim();
+}
 function displayCombined(txt){
-const paras=txt.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean); sentences=paras;
-let p=document.getElementById('preview');
-p.innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('')+'<div class="spinner" id="spinner"></div>';
-attachClicks();cache={};currentIndex=0;highlightCurrent();}
-
-function attachClicks(){document.querySelectorAll('.sentence').forEach(s=>{s.onclick=()=>{currentIndex=+s.dataset.idx;highlightCurrent();playSentence(currentIndex);};});}
-function highlightCurrent(){let s=document.querySelectorAll('.sentence');s.forEach(sp=>sp.classList.remove('active'));if(s[currentIndex]){s[currentIndex].classList.add('active');s[currentIndex].scrollIntoView({behavior:"smooth",block:"center"});}}
+  const paras=txt.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
+  sentences=paras;
+  const p=document.getElementById('preview');
+  p.innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('')+'<div class="spinner" id="spinner"></div>';
+  attachClicks();cache={};currentIndex=0;highlightCurrent();
+}
+function attachClicks(){
+  document.querySelectorAll('.sentence').forEach(s=>{s.onclick=()=>{currentIndex=+s.dataset.idx;highlightCurrent();playSentence(currentIndex);};});
+}
+function highlightCurrent(){
+  const s=document.querySelectorAll('.sentence');
+  s.forEach(sp=>sp.classList.remove('active'));
+  if(s[currentIndex]){s[currentIndex].classList.add('active');s[currentIndex].scrollIntoView({behavior:"smooth",block:"center"});}
+}
 async function playSentence(i){
-if(cache[i]){new Audio(cache[i]).play();}else{
-const apiKey=localStorage.getItem('openai_api_key');
-try{
-const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",
-headers:{"Authorization":"Bearer "+apiKey,"Content-Type":"application/json"},
-body:JSON.stringify({model:"tts-1",voice:"alloy",input:sentences[i]})});
-const a=await r.arrayBuffer(); let b=new Blob([a],{type:"audio/mpeg"}); let u=URL.createObjectURL(b);
-cache[i]=u;new Audio(u).play();}catch(e){console.error(e);alert("Failed to speak.");}}}
+  if(cache[i]){new Audio(cache[i]).play();}
+  else{
+    const apiKey=localStorage.getItem('openai_api_key');
+    try{
+      const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",
+      headers:{"Authorization":"Bearer "+apiKey,"Content-Type":"application/json"},
+      body:JSON.stringify({model:"tts-1",voice:"alloy",input:sentences[i]})});
+      const a=await r.arrayBuffer(); let b=new Blob([a],{type:"audio/mpeg"}); let u=URL.createObjectURL(b);
+      cache[i]=u;new Audio(u).play();
+    }catch(e){console.error(e);alert("Failed to speak.");}
+  }
+}
 function playCurrent(){if(sentences.length)highlightCurrent(),playSentence(currentIndex);}
 function playPrevious(){if(sentences.length){currentIndex=Math.max(0,currentIndex-1);highlightCurrent();playSentence(currentIndex);}}
 function playNext(){if(sentences.length){currentIndex=Math.min(sentences.length-1,currentIndex+1);highlightCurrent();playSentence(currentIndex);}}
