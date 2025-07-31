@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Text Tool (Fixed Ctrl+M)</title>
+<title>Smart Text Tool Pro</title>
 <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -15,6 +15,7 @@
     --textarea-bg: #fafafa;
     --textarea-color: #555;
     --preview-bg: #fff;
+    --panel-bg: #fff;
   }
   body.dark {
     --bg: #121212;
@@ -25,105 +26,124 @@
     --textarea-bg: #1e1e1e;
     --textarea-color: #ccc;
     --preview-bg: #1e1e1e;
+    --panel-bg: #2a2a2a;
   }
-  body { 
-    margin: 0; 
-    padding: 10px; 
-    display: flex; 
-    flex-direction: column; 
-    height: 100vh; 
-    background: var(--bg); 
-    color: var(--fg); 
-    font-family: 'Open Sans', sans-serif; 
+  body.sepia {
+    --bg: #f4ecd8;
+    --fg: #5b4636;
+    --toolbar-bg: #ede0c8;
+    --button-bg: #c49a6c;
+    --button-hover: #a57d52;
+    --textarea-bg: #fdf6e3;
+    --textarea-color: #5b4636;
+    --preview-bg: #fdf6e3;
+    --panel-bg: #ede0c8;
+  }
+  body {
+    margin: 0;
+    padding: 12px;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: 'Open Sans', sans-serif;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
     box-sizing: border-box;
   }
-  .toolbar { 
-    background: var(--toolbar-bg); 
-    padding: 8px 12px; 
-    display: flex; 
-    gap: 8px; 
-    align-items: center; 
-    box-shadow: 0 1px 4px rgba(0,0,0,0.1); 
-    position: sticky; 
-    top: 0; 
-    z-index: 10; 
+  .toolbar {
+    background: var(--toolbar-bg);
+    padding: 8px 12px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
     border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    position: sticky;
+    top: 0;
+    z-index: 10;
   }
-  .toolbar button, .toolbar select { 
-    background: var(--button-bg); 
-    color: white; 
-    border: none; 
-    padding: 6px 10px; 
-    cursor: pointer; 
-    border-radius: 6px; 
-    font-size: 14px; 
-    transition: background 0.2s; 
+  .toolbar button, .toolbar select {
+    background: var(--button-bg);
+    color: white;
+    border: none;
+    padding: 6px 10px;
+    cursor: pointer;
+    border-radius: 6px;
+    font-size: 14px;
+    transition: background 0.2s, transform 0.1s;
   }
   .toolbar button:hover, .toolbar select:hover { background: var(--button-hover); }
+  .toolbar button:active { transform: scale(0.97); }
   .toolbar-spacer { flex: 1; }
-  .container { 
-    flex: 1; 
-    display: flex; 
-    gap: 10px; 
-    padding: 10px; 
-    box-sizing: border-box; 
+  .container {
+    flex: 1;
+    display: flex;
+    gap: 12px;
+    margin-top: 10px;
   }
-  textarea { 
-    flex: 1; 
-    resize: none; 
-    font-size: 16px; 
-    line-height: 1.6; 
-    padding: 12px; 
-    background: var(--textarea-bg); 
-    color: var(--textarea-color); 
-    border: 1px solid #ccc; 
-    border-radius: 6px; 
-    font-family: 'Source Code Pro', monospace; 
+  textarea {
+    flex: 1;
+    resize: none;
+    font-size: 16px;
+    line-height: 1.6;
+    padding: 12px;
+    background: var(--textarea-bg);
+    color: var(--textarea-color);
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-family: 'Source Code Pro', monospace;
   }
-  .preview { 
-    flex: 1; 
-    padding: 12px; 
-    background: var(--preview-bg); 
-    overflow-y: auto; 
-    font-size: 20px; 
-    line-height: 1.8; 
-    border: 1px solid #ccc; 
-    border-radius: 6px; 
-    font-family: 'Book Antiqua', Palatino, serif; 
+  .preview {
+    flex: 1;
+    padding: 12px;
+    background: var(--preview-bg);
+    overflow-y: auto;
+    font-size: 20px;
+    line-height: 1.8;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-family: 'Book Antiqua', Palatino, serif;
   }
-  .sentence { 
-    display: block; 
-    margin-bottom: 18px; 
-    cursor: pointer; 
-    padding: 2px 4px; 
-    border-radius: 4px; 
-    transition: background 0.2s; 
+  .sentence {
+    display: block;
+    margin-bottom: 18px;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: background 0.2s;
   }
   .sentence:hover { background: rgba(66,133,244,0.15); }
   .active { background: rgba(66,133,244,0.25); }
-
-  .indicator {
-    width: 10px; 
-    height: 10px; 
-    background: red; 
-    border-radius: 50%; 
-    margin-left: 4px; 
-    animation: blink 1s infinite;
-    display: inline-block;
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 20;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,0,0,0.4);
   }
-  @keyframes blink {
-    0% { opacity: 1; }
-    50% { opacity: 0; }
-    100% { opacity: 1; }
+  .panel {
+    background: var(--panel-bg);
+    margin: 10% auto;
+    padding: 20px;
+    border-radius: 8px;
+    width: 320px;
+    color: var(--fg);
+    box-shadow: 0 0 10px rgba(0,0,0,0.3);
   }
+  .panel button, .panel select { margin-top: 8px; width: 100%; }
 </style>
 </head>
 <body>
 <div class="toolbar">
+  <button onclick="readAll()">📢 Read All</button>
+  <button onclick="translateText()">🌍 Translate</button>
+  <button onclick="toggleRepeat()" id="repeatBtn">🔁 Repeat</button>
+  <div class="toolbar-spacer"></div>
   <select id="voiceSelect">
-    <option value="alloy" selected>Alloy</option>
+    <option value="alloy">Alloy</option>
     <option value="fable">Fable</option>
-    <option value="onyx">Onyx</option>
+    <option value="onyx" selected>Onyx</option>
     <option value="nova">Nova</option>
     <option value="shimmer">Shimmer</option>
   </select>
@@ -132,168 +152,129 @@
     <option value="fr">French</option>
     <option value="en">English</option>
   </select>
-  <button onclick="translateText()">🌍 Translate</button>
-  <button onclick="toggleRepeat()" id="repeatBtn">🔁 Repeat</button>
-  <span id="repeatIndicator" style="display:none;" class="indicator"></span>
-  <button onclick="readAll()">📢 Read All</button>
-  <div class="toolbar-spacer"></div>
-  <button onclick="toggleTheme()">🌓 Toggle Theme</button>
-  <button onclick="resetApiKey()">🔑 API Key</button>
+  <button onclick="toggleTheme()">🌓 Theme</button>
+  <button onclick="resetApiKey()">🔑 API</button>
+  <button onclick="toggleSettings()">⚙️</button>
 </div>
 <div class="container">
   <textarea id="inputText" placeholder="Type or paste text here..."></textarea>
   <div id="preview" class="preview"></div>
 </div>
+<!-- Settings Panel -->
+<div id="settingsModal" class="modal">
+  <div class="panel">
+    <h3>Settings</h3>
+    <select onchange="changeTheme(this.value)">
+      <option value="light">Light</option>
+      <option value="dark">Dark</option>
+      <option value="sepia">Sepia</option>
+    </select>
+    <button onclick="exportData('text')">⬇ Export Text</button>
+    <button onclick="exportData('md')">⬇ Export Markdown</button>
+    <button onclick="exportData('html')">⬇ Export HTML</button>
+    <button onclick="importData()">⬆ Import JSON</button>
+    <button onclick="resetAll()">🗑 Reset All</button>
+    <button onclick="toggleSettings()">Close</button>
+  </div>
+</div>
 
 <script>
-let sentences=[], cache={}, currentIndex=0;
-let isRepeating=false, repeatAudio=null;
-let allTextAudio=null;
-
-document.addEventListener('DOMContentLoaded', async () => {
-  await checkApiKey();
-  initTheme();
+let sentences=[], cache={}, currentIndex=0, isRepeating=false, repeatAudio=null, allTextAudio=null;
+document.addEventListener('DOMContentLoaded',()=>{
+  checkApiKey(); initTheme();
   const t=document.getElementById('inputText');
-  const saved=localStorage.getItem('saved_text');
-  if(saved) { t.value=saved; updatePreview(); }
-
-  t.addEventListener('input',()=>{
-    localStorage.setItem('saved_text',t.value);
-    updatePreview();
-  });
-
-  t.addEventListener('paste', function(e){
+  const saved=localStorage.getItem('saved_text'); if(saved){ t.value=saved; updatePreview();}
+  t.addEventListener('input',()=>{ localStorage.setItem('saved_text',t.value); updatePreview(); });
+  t.addEventListener('paste',function(e){
     e.preventDefault();
-    let clipboardData = (e.clipboardData || window.clipboardData).getData('text');
-    clipboardData = clipboardData.replace(/([.?!])(\s|\n)+/g, "$1\n\n").replace(/[ ]+/g,' ').trim();
-    let start = this.selectionStart;
-    let end = this.selectionEnd;
-    let oldText = this.value;
-    let newText = oldText.slice(0, start) + clipboardData + oldText.slice(end);
-    this.value = newText;
-    localStorage.setItem('saved_text', newText);
-    updatePreview();
+    let d=(e.clipboardData||window.clipboardData).getData('text');
+    d=d.replace(/([.?!])(\s|\n)+/g,"$1\n\n").replace(/[ ]+/g,' ').trim();
+    let s=this.selectionStart, e2=this.selectionEnd, old=this.value;
+    this.value=old.slice(0,s)+d+old.slice(e2);
+    localStorage.setItem('saved_text',this.value); updatePreview();
   });
-
-  // ✅ Fix Ctrl+M
-  t.addEventListener('keydown', function(e){
-    if(e.ctrlKey && e.key === 'm'){
-      e.preventDefault();
-      let start = this.selectionStart;
-      let end = this.selectionEnd;
-      if(start !== end){
-        let selected = this.value.slice(start, end);
-        // remove blank lines inside selection
-        selected = selected.replace(/\n\s*\n+/g,' ');
-        this.value = this.value.slice(0, start) + selected + this.value.slice(end);
-        this.selectionStart = start;
-        this.selectionEnd = start + selected.length;
-        localStorage.setItem('saved_text', this.value);
-        updatePreview();
+  t.addEventListener('keydown',function(e){
+    if(e.ctrlKey&&e.key==='m'){ e.preventDefault();
+      let s=this.selectionStart, e2=this.selectionEnd;
+      if(s!==e2){
+        let sel=this.value.slice(s,e2).replace(/\n\s*\n+/g,' ');
+        this.value=this.value.slice(0,s)+sel+this.value.slice(e2);
+        localStorage.setItem('saved_text',this.value); updatePreview();
       }
     }
   });
 });
-
-function toggleTheme(){
-  document.body.classList.toggle('dark');
-  localStorage.setItem('theme', document.body.classList.contains('dark') ? 'dark' : 'light');
+function toggleSettings(){ let m=document.getElementById('settingsModal'); m.style.display=(m.style.display==='block')?'none':'block'; }
+function changeTheme(v){ document.body.className=v; localStorage.setItem('theme',v);}
+function exportData(type){
+  let text=document.getElementById('inputText').value;
+  let data=''; let ext='txt';
+  if(type==='md'){ data='## Exported Text\n\n'+text; ext='md'; }
+  else if(type==='html'){ data='<html><body><p>'+text.replace(/\n/g,'</p><p>')+'</p></body></html>'; ext='html'; }
+  else data=text;
+  let blob=new Blob([data],{type:'text/plain'}); let a=document.createElement('a');
+  a.href=URL.createObjectURL(blob); a.download='export.'+ext; a.click();
 }
-function initTheme(){
-  const saved=localStorage.getItem('theme');
-  if(saved==='dark') document.body.classList.add('dark');
+function importData(){
+  let i=document.createElement('input'); i.type='file'; i.accept='.json';
+  i.onchange=e=>{
+    let r=new FileReader();
+    r.onload=()=>{ let d=JSON.parse(r.result);
+      document.getElementById('inputText').value=d.text; cache=d.cache||{}; localStorage.setItem('saved_text',d.text); updatePreview(); };
+    r.readAsText(e.target.files[0]);
+  }; i.click();
 }
-async function checkApiKey(){
-  let k=localStorage.getItem('openai_api_key');
-  if(!k) { k=prompt("Enter your OpenAI API key:"); if(k) localStorage.setItem('openai_api_key',k); else alert("API key required."); }
+function resetAll(){
+  localStorage.clear(); cache={}; document.getElementById('inputText').value=''; updatePreview();
 }
-function resetApiKey(){ localStorage.removeItem('openai_api_key'); checkApiKey(); }
-
 function updatePreview(){
   const text=document.getElementById('inputText').value.trim();
-  if(!text) { document.getElementById('preview').innerHTML=''; return; }
+  if(!text){ document.getElementById('preview').innerHTML=''; return;}
   let paras=text.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
   sentences=paras;
   document.getElementById('preview').innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('');
-  attachClicks(); currentIndex=0; highlightCurrent();
+  document.querySelectorAll('.sentence').forEach(s=> s.onclick=()=>{ currentIndex=+s.dataset.idx; playSentence(currentIndex); });
 }
-function attachClicks(){
-  document.querySelectorAll('.sentence').forEach(s=> s.onclick=()=>{ currentIndex=+s.dataset.idx; highlightCurrent(); playSentence(currentIndex); });
-}
-function highlightCurrent(){ document.querySelectorAll('.sentence').forEach((sp,i)=> sp.classList.toggle('active',i===currentIndex)); }
-
 async function playSentence(i){
   const voice=document.getElementById('voiceSelect').value;
   if(cache[i]) new Audio(cache[i]).play();
   else{
-    try{
-      const k=localStorage.getItem('openai_api_key');
-      const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
-      body:JSON.stringify({model:"tts-1",voice:voice,input:sentences[i]})});
-      const a=await r.arrayBuffer(); let u=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
-      cache[i]=u; new Audio(u).play();
-    }catch(e){ console.error(e); alert("Failed to speak."); }
-  }
-}
-
-async function readAll(){
-  const voice=document.getElementById('voiceSelect').value;
-  const fullText=sentences.join(' ');
-  if(allTextAudio){ new Audio(allTextAudio).play(); }
-  else{
-    try{
-      const k=localStorage.getItem('openai_api_key');
-      const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
-      body:JSON.stringify({model:"tts-1",voice:voice,input:fullText})});
-      const a=await r.arrayBuffer(); let u=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
-      allTextAudio=u; new Audio(u).play();
-    }catch(e){ console.error(e); alert("Failed to speak."); }
-  }
-}
-
-async function toggleRepeat(){
-  isRepeating=!isRepeating;
-  const btn=document.getElementById('repeatBtn');
-  const indicator=document.getElementById('repeatIndicator');
-  btn.style.background=isRepeating?'#d9534f': 'var(--button-bg)';
-  btn.style.color='white';
-  indicator.style.display=isRepeating?'inline-block':'none';
-
-  if(isRepeating){
-    if(!cache[currentIndex]) await generateAudioForCurrent();
-    repeatLoop();
-  }else{
-    if(repeatAudio) repeatAudio.pause();
-  }
-}
-
-async function generateAudioForCurrent(){
-  const voice=document.getElementById('voiceSelect').value;
-  try{
     const k=localStorage.getItem('openai_api_key');
     const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
-    body:JSON.stringify({model:"tts-1",voice:voice,input:sentences[currentIndex]})});
-    const a=await r.arrayBuffer(); 
-    cache[currentIndex]=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
-  }catch(e){ console.error(e); alert("Failed to create audio."); }
-}
-async function repeatLoop(){
-  while(isRepeating){
-    repeatAudio=new Audio(cache[currentIndex]);
-    await new Promise(resolve=>{
-      repeatAudio.onended=resolve;
-      repeatAudio.play();
-    });
-    await new Promise(res=>setTimeout(res,5000));
+    body:JSON.stringify({model:"tts-1",voice,input:sentences[i]})});
+    const a=await r.arrayBuffer(); let u=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
+    cache[i]=u; new Audio(u).play();
   }
 }
-
+async function readAll(){
+  const voice=document.getElementById('voiceSelect').value;
+  const full=sentences.join(' ');
+  if(allTextAudio){ new Audio(allTextAudio).play(); }
+  else{
+    const k=localStorage.getItem('openai_api_key');
+    const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
+    body:JSON.stringify({model:"tts-1",voice,input:full})});
+    const a=await r.arrayBuffer(); let u=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
+    allTextAudio=u; new Audio(u).play();
+  }
+}
+function toggleRepeat(){ isRepeating=!isRepeating; document.getElementById('repeatBtn').classList.toggle('active',isRepeating);}
 function translateText(){
   const lang=document.getElementById('langSelect').value;
-  const text=sentences.join('\n\n');
-  let url=`https://translate.google.com/?sl=auto&tl=${encodeURIComponent(lang)}&text=${encodeURIComponent(text)}&op=translate`;
-  window.open(url,'_blank');
+  let text=sentences.join('\n\n');
+  window.open(`https://translate.google.com/?sl=auto&tl=${lang}&text=${encodeURIComponent(text)}&op=translate`,'_blank');
 }
+async function checkApiKey(){
+  let k=localStorage.getItem('openai_api_key');
+  if(!k){ k=prompt("Enter OpenAI API key:"); if(k) localStorage.setItem('openai_api_key',k); else alert("API key required."); }
+}
+function resetApiKey(){ localStorage.removeItem('openai_api_key'); checkApiKey();}
+function toggleTheme(){
+  let current=document.body.className;
+  let next=(current==='dark')?'light':'dark';
+  document.body.className=next; localStorage.setItem('theme',next);
+}
+function initTheme(){ let saved=localStorage.getItem('theme'); if(saved) document.body.className=saved; }
 </script>
 </body>
 </html>
