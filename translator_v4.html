@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Text Tool Pro</title>
+<title>Smart Text Tool</title>
 <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -27,17 +27,6 @@
     --textarea-color: #ccc;
     --preview-bg: #1e1e1e;
     --panel-bg: #2a2a2a;
-  }
-  body.sepia {
-    --bg: #f4ecd8;
-    --fg: #5b4636;
-    --toolbar-bg: #ede0c8;
-    --button-bg: #c49a6c;
-    --button-hover: #a57d52;
-    --textarea-bg: #fdf6e3;
-    --textarea-color: #5b4636;
-    --preview-bg: #fdf6e3;
-    --panel-bg: #ede0c8;
   }
   body {
     margin: 0;
@@ -114,24 +103,6 @@
   }
   .sentence:hover { background: rgba(66,133,244,0.15); }
   .active { background: rgba(66,133,244,0.25); }
-  .modal {
-    display: none;
-    position: fixed;
-    z-index: 20;
-    left: 0; top: 0;
-    width: 100%; height: 100%;
-    background: rgba(0,0,0,0.4);
-  }
-  .panel {
-    background: var(--panel-bg);
-    margin: 10% auto;
-    padding: 20px;
-    border-radius: 8px;
-    width: 320px;
-    color: var(--fg);
-    box-shadow: 0 0 10px rgba(0,0,0,0.3);
-  }
-  .panel button, .panel select { margin-top: 8px; width: 100%; }
 </style>
 </head>
 <body>
@@ -154,32 +125,15 @@
   </select>
   <button onclick="toggleTheme()">🌓 Theme</button>
   <button onclick="resetApiKey()">🔑 API</button>
-  <button onclick="toggleSettings()">⚙️</button>
 </div>
 <div class="container">
   <textarea id="inputText" placeholder="Type or paste text here..."></textarea>
   <div id="preview" class="preview"></div>
 </div>
-<!-- Settings Panel -->
-<div id="settingsModal" class="modal">
-  <div class="panel">
-    <h3>Settings</h3>
-    <select onchange="changeTheme(this.value)">
-      <option value="light">Light</option>
-      <option value="dark">Dark</option>
-      <option value="sepia">Sepia</option>
-    </select>
-    <button onclick="exportData('text')">⬇ Export Text</button>
-    <button onclick="exportData('md')">⬇ Export Markdown</button>
-    <button onclick="exportData('html')">⬇ Export HTML</button>
-    <button onclick="importData()">⬆ Import JSON</button>
-    <button onclick="resetAll()">🗑 Reset All</button>
-    <button onclick="toggleSettings()">Close</button>
-  </div>
-</div>
 
 <script>
-let sentences=[], cache={}, currentIndex=0, isRepeating=false, repeatAudio=null, allTextAudio=null;
+let sentences=[], cache={}, currentIndex=null, isRepeating=false, repeatTimer=null, allTextAudio=null;
+
 document.addEventListener('DOMContentLoaded',()=>{
   checkApiKey(); initTheme();
   const t=document.getElementById('inputText');
@@ -204,37 +158,46 @@ document.addEventListener('DOMContentLoaded',()=>{
     }
   });
 });
-function toggleSettings(){ let m=document.getElementById('settingsModal'); m.style.display=(m.style.display==='block')?'none':'block'; }
-function changeTheme(v){ document.body.className=v; localStorage.setItem('theme',v);}
-function exportData(type){
-  let text=document.getElementById('inputText').value;
-  let data=''; let ext='txt';
-  if(type==='md'){ data='## Exported Text\n\n'+text; ext='md'; }
-  else if(type==='html'){ data='<html><body><p>'+text.replace(/\n/g,'</p><p>')+'</p></body></html>'; ext='html'; }
-  else data=text;
-  let blob=new Blob([data],{type:'text/plain'}); let a=document.createElement('a');
-  a.href=URL.createObjectURL(blob); a.download='export.'+ext; a.click();
-}
-function importData(){
-  let i=document.createElement('input'); i.type='file'; i.accept='.json';
-  i.onchange=e=>{
-    let r=new FileReader();
-    r.onload=()=>{ let d=JSON.parse(r.result);
-      document.getElementById('inputText').value=d.text; cache=d.cache||{}; localStorage.setItem('saved_text',d.text); updatePreview(); };
-    r.readAsText(e.target.files[0]);
-  }; i.click();
-}
-function resetAll(){
-  localStorage.clear(); cache={}; document.getElementById('inputText').value=''; updatePreview();
-}
+
 function updatePreview(){
   const text=document.getElementById('inputText').value.trim();
   if(!text){ document.getElementById('preview').innerHTML=''; return;}
   let paras=text.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
   sentences=paras;
   document.getElementById('preview').innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('');
-  document.querySelectorAll('.sentence').forEach(s=> s.onclick=()=>{ currentIndex=+s.dataset.idx; playSentence(currentIndex); });
+  document.querySelectorAll('.sentence').forEach(s=> {
+    s.onclick=()=>{
+      currentIndex=+s.dataset.idx;
+      highlightActive(currentIndex);
+      playSentence(currentIndex);
+    }
+  });
 }
+
+function highlightActive(idx){
+  document.querySelectorAll('.sentence').forEach(s=>s.classList.remove('active'));
+  let active=document.querySelector(`.sentence[data-idx="${idx}"]`);
+  if(active) active.classList.add('active');
+}
+
+function removeActiveHighlight(){
+  document.querySelectorAll('.sentence').forEach(s=>s.classList.remove('active'));
+}
+
+function toggleRepeat(){
+  isRepeating=!isRepeating;
+  document.getElementById('repeatBtn').classList.toggle('active',isRepeating);
+  if(isRepeating){
+    if(currentIndex==null) currentIndex=0;
+    highlightActive(currentIndex);
+    repeatTimer = setInterval(()=>{ playSentence(currentIndex); }, 7000); // 7 sec interval
+  } else {
+    clearInterval(repeatTimer);
+    repeatTimer=null;
+    removeActiveHighlight();
+  }
+}
+
 async function playSentence(i){
   const voice=document.getElementById('voiceSelect').value;
   if(cache[i]) new Audio(cache[i]).play();
@@ -246,6 +209,7 @@ async function playSentence(i){
     cache[i]=u; new Audio(u).play();
   }
 }
+
 async function readAll(){
   const voice=document.getElementById('voiceSelect').value;
   const full=sentences.join(' ');
@@ -258,20 +222,22 @@ async function readAll(){
     allTextAudio=u; new Audio(u).play();
   }
 }
-function toggleRepeat(){ isRepeating=!isRepeating; document.getElementById('repeatBtn').classList.toggle('active',isRepeating);}
+
 function translateText(){
   const lang=document.getElementById('langSelect').value;
   let text=sentences.join('\n\n');
   window.open(`https://translate.google.com/?sl=auto&tl=${lang}&text=${encodeURIComponent(text)}&op=translate`,'_blank');
 }
+
 async function checkApiKey(){
   let k=localStorage.getItem('openai_api_key');
   if(!k){ k=prompt("Enter OpenAI API key:"); if(k) localStorage.setItem('openai_api_key',k); else alert("API key required."); }
 }
+
 function resetApiKey(){ localStorage.removeItem('openai_api_key'); checkApiKey();}
 function toggleTheme(){
   let current=document.body.className;
-  let next=(current==='dark')?'light':'dark';
+  let next=(current==='dark')?'':(current==='')?'dark':'';
   document.body.className=next; localStorage.setItem('theme',next);
 }
 function initTheme(){ let saved=localStorage.getItem('theme'); if(saved) document.body.className=saved; }
