@@ -46,7 +46,9 @@
 </div>
 <div class="container">
   <textarea id="inputText" placeholder="Type or paste text here..."></textarea>
-  <div id="preview" class="preview"><div class="spinner" id="spinner"></div></div>
+  <div id="preview" class="preview">
+    <div class="spinner" id="spinner"></div>
+  </div>
 </div>
 <script>
 const ABBREVIATIONS=['Mr.','Mrs.','Ms.','Dr.','Prof.','Sr.','Jr.','St.','vs.','etc.','e.g.','i.e.','U.S.A.'];
@@ -79,7 +81,7 @@ function changeFontSize(s){ document.getElementById('preview').style.fontSize=s+
 async function updatePreview(){
   const mode=document.getElementById('modeSelect').value;
   const text=document.getElementById('inputText').value.trim();
-  if(!text) { document.getElementById('preview').innerHTML=''; return; }
+  if(!text) { document.getElementById('preview').innerHTML='<div class="spinner" id="spinner"></div>'; return; }
   if(mode==='plain') showPlain(text);
   else if(mode==='combined') await showCombined(text);
 }
@@ -102,7 +104,7 @@ function showPlain(text){
     return s.replace(/\s+/g,' ').trim();
   }).filter(Boolean);
   sentences=parts;
-  document.getElementById('preview').innerHTML=parts.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('');
+  document.getElementById('preview').innerHTML=parts.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('')+'<div class="spinner" id="spinner"></div>';
   attachClicks(); cache={}; currentIndex=0; highlightCurrent();
 }
 
@@ -125,7 +127,7 @@ async function callOpenAI(prompt){
 function displayCombined(txt){
   const paras=txt.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
   sentences=paras;
-  document.getElementById('preview').innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('');
+  document.getElementById('preview').innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('')+'<div class="spinner" id="spinner"></div>';
   attachClicks(); cache={}; currentIndex=0; highlightCurrent();
 }
 
