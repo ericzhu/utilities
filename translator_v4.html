@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Text Tool (Repeat Cached with Indicator)</title>
+<title>Smart Text Tool (Read All + Cache)</title>
 <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -133,9 +133,9 @@
     <option value="en">English</option>
   </select>
   <button onclick="translateText()">🌍 Translate</button>
-  <button onclick="clearText()">🧹 Clear</button>
   <button onclick="toggleRepeat()" id="repeatBtn">🔁 Repeat</button>
   <span id="repeatIndicator" style="display:none;" class="indicator"></span>
+  <button onclick="readAll()">📢 Read All</button>
   <div class="toolbar-spacer"></div>
   <button onclick="toggleTheme()">🌓 Toggle Theme</button>
   <button onclick="resetApiKey()">🔑 API Key</button>
@@ -148,6 +148,7 @@
 <script>
 let sentences=[], cache={}, currentIndex=0;
 let isRepeating=false, repeatAudio=null;
+let allTextAudio=null;  // cache for read all
 
 document.addEventListener('DOMContentLoaded', async () => {
   await checkApiKey();
@@ -173,22 +174,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     localStorage.setItem('saved_text', newText);
     updatePreview();
   });
-
-  t.addEventListener('keydown', function(e){
-    if(e.ctrlKey && e.key === 'm'){
-      e.preventDefault();
-      const start=t.selectionStart, end=t.selectionEnd;
-      if(start !== end){
-        let selected = t.value.substring(start,end);
-        selected = selected.replace(/\n\s*\n+/g,' ');
-        t.value = t.value.slice(0,start) + selected + t.value.slice(end);
-        t.selectionStart=start;
-        t.selectionEnd=start+selected.length;
-        localStorage.setItem('saved_text',t.value);
-        updatePreview();
-      }
-    }
-  });
 });
 
 function toggleTheme(){
@@ -205,7 +190,6 @@ async function checkApiKey(){
   if(!k) { k=prompt("Enter your OpenAI API key:"); if(k) localStorage.setItem('openai_api_key',k); else alert("API key required."); }
 }
 function resetApiKey(){ localStorage.removeItem('openai_api_key'); checkApiKey(); }
-function clearText(){ document.getElementById('inputText').value=''; localStorage.removeItem('saved_text'); updatePreview(); }
 
 function updatePreview(){
   const text=document.getElementById('inputText').value.trim();
@@ -231,6 +215,21 @@ async function playSentence(i){
       body:JSON.stringify({model:"tts-1",voice:voice,input:sentences[i]})});
       const a=await r.arrayBuffer(); let u=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
       cache[i]=u; new Audio(u).play();
+    }catch(e){ console.error(e); alert("Failed to speak."); }
+  }
+}
+
+async function readAll(){
+  const voice=document.getElementById('voiceSelect').value;
+  const fullText=sentences.join(' ');
+  if(allTextAudio){ new Audio(allTextAudio).play(); }
+  else{
+    try{
+      const k=localStorage.getItem('openai_api_key');
+      const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
+      body:JSON.stringify({model:"tts-1",voice:voice,input:fullText})});
+      const a=await r.arrayBuffer(); let u=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
+      allTextAudio=u; new Audio(u).play();
     }catch(e){ console.error(e); alert("Failed to speak."); }
   }
 }
