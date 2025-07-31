@@ -34,6 +34,7 @@
     <option value="combined">Combined mode</option>
   </select>
   <input type="range" id="fontSizeRange" min="16" max="28" value="20" title="Preview font size" onchange="changeFontSize(this.value)">
+  <button onclick="translateToChinese()">🌐 Translate</button>
   <button onclick="clearText()">🧹 Clear</button>
   <button onclick="resetApiKey()">🔑 API Key</button>
   <button onclick="toggleTheme()">🌓 Theme</button>
@@ -83,15 +84,13 @@ async function updatePreview(){
 
 function formatTextSmartly(text) {
   let tmp = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  // Protect abbreviations
   ABBREVIATIONS.forEach(a => { tmp = tmp.replace(new RegExp(a.replace('.','\\.'),'g'), a.replace('.','<<DOT>>')); });
-  // Split by period followed by space/newline/end, not after abbreviations
   let parts = tmp.split(/(?<=\.)[\s\n]+/);
   parts = parts.map(s => {
     ABBREVIATIONS.forEach(a=>{ s=s.replace(new RegExp(a.replace('.','<<DOT>>'),'g'),a); });
     return s.replace(/\s+/g,' ').trim();
   }).filter(Boolean);
-  return parts.join('\n\n'); // blank line between sentences/paragraphs
+  return parts.join('\n\n'); 
 }
 
 function showPlain(text){
@@ -153,6 +152,12 @@ async function playSentence(i){
 function playCurrent(){ if(sentences.length) highlightCurrent(),playSentence(currentIndex); }
 function playPrevious(){ if(sentences.length){ currentIndex=Math.max(0,currentIndex-1); highlightCurrent(); playSentence(currentIndex); } }
 function playNext(){ if(sentences.length){ currentIndex=Math.min(sentences.length-1,currentIndex+1); highlightCurrent(); playSentence(currentIndex); } }
+
+function translateToChinese(){
+  let text = sentences.join('\n\n');
+  let url = 'https://translate.google.com/?sl=auto&tl=zh-CN&text=' + encodeURIComponent(text) + '&op=translate';
+  window.open(url, '_blank');
+}
 </script>
 </body>
 </html>
