@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Text Tool (Clean Dropdown)</title>
+<title>Smart Text Tool (Repeat Selected Paragraph)</title>
 <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -119,6 +119,7 @@
   </select>
   <button onclick="translateText()">🌍 Translate</button>
   <button onclick="clearText()">🧹 Clear</button>
+  <button onclick="toggleRepeat()" id="repeatBtn">🔁 Repeat</button>
   <div class="toolbar-spacer"></div>
   <button onclick="toggleTheme()">🌓 Toggle Theme</button>
   <button onclick="resetApiKey()">🔑 API Key</button>
@@ -130,6 +131,7 @@
 
 <script>
 let sentences=[], cache={}, currentIndex=0;
+let isRepeating=false, repeatAudio=null, repeatCache=null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   await checkApiKey();
@@ -214,6 +216,42 @@ async function playSentence(i){
       const a=await r.arrayBuffer(); let u=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
       cache[i]=u; new Audio(u).play();
     }catch(e){ console.error(e); alert("Failed to speak."); }
+  }
+}
+
+async function toggleRepeat(){
+  isRepeating=!isRepeating;
+  const btn=document.getElementById('repeatBtn');
+  btn.style.background=isRepeating?'#d9534f': 'var(--button-bg)';
+  btn.style.color='white';
+  if(isRepeating){
+    if(!cache[currentIndex]) await generateRepeatAudio(currentIndex);
+    loopPlayCurrent();
+  }else{
+    if(repeatAudio) repeatAudio.pause();
+  }
+}
+
+async function generateRepeatAudio(i){
+  const voice=document.getElementById('voiceSelect').value;
+  try{
+    const k=localStorage.getItem('openai_api_key');
+    const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
+    body:JSON.stringify({model:"tts-1",voice:voice,input:sentences[i]})});
+    const a=await r.arrayBuffer(); 
+    cache[i]=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
+  }catch(e){ console.error(e); alert("Failed to create audio."); }
+}
+
+async function loopPlayCurrent(){
+  while(isRepeating){
+    if(!cache[currentIndex]) await generateRepeatAudio(currentIndex);
+    repeatAudio=new Audio(cache[currentIndex]);
+    await new Promise(resolve=>{
+      repeatAudio.onended=resolve;
+      repeatAudio.play();
+    });
+    await new Promise(res=>setTimeout(res,5000));
   }
 }
 
