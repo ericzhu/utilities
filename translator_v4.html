@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Text Tool (Repeat Selected Paragraph)</title>
+<title>Smart Text Tool (Repeat Cached with Indicator)</title>
 <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -101,6 +101,21 @@
   }
   .sentence:hover { background: rgba(66,133,244,0.15); }
   .active { background: rgba(66,133,244,0.25); }
+
+  .indicator {
+    width: 10px; 
+    height: 10px; 
+    background: red; 
+    border-radius: 50%; 
+    margin-left: 4px; 
+    animation: blink 1s infinite;
+    display: inline-block;
+  }
+  @keyframes blink {
+    0% { opacity: 1; }
+    50% { opacity: 0; }
+    100% { opacity: 1; }
+  }
 </style>
 </head>
 <body>
@@ -120,6 +135,7 @@
   <button onclick="translateText()">🌍 Translate</button>
   <button onclick="clearText()">🧹 Clear</button>
   <button onclick="toggleRepeat()" id="repeatBtn">🔁 Repeat</button>
+  <span id="repeatIndicator" style="display:none;" class="indicator"></span>
   <div class="toolbar-spacer"></div>
   <button onclick="toggleTheme()">🌓 Toggle Theme</button>
   <button onclick="resetApiKey()">🔑 API Key</button>
@@ -131,7 +147,7 @@
 
 <script>
 let sentences=[], cache={}, currentIndex=0;
-let isRepeating=false, repeatAudio=null, repeatCache=null;
+let isRepeating=false, repeatAudio=null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   await checkApiKey();
@@ -197,7 +213,7 @@ function updatePreview(){
   let paras=text.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
   sentences=paras;
   document.getElementById('preview').innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('');
-  attachClicks(); cache={}; currentIndex=0; highlightCurrent();
+  attachClicks(); currentIndex=0; highlightCurrent();
 }
 
 function attachClicks(){
@@ -222,30 +238,32 @@ async function playSentence(i){
 async function toggleRepeat(){
   isRepeating=!isRepeating;
   const btn=document.getElementById('repeatBtn');
+  const indicator=document.getElementById('repeatIndicator');
   btn.style.background=isRepeating?'#d9534f': 'var(--button-bg)';
   btn.style.color='white';
+  indicator.style.display=isRepeating?'inline-block':'none';
+
   if(isRepeating){
-    if(!cache[currentIndex]) await generateRepeatAudio(currentIndex);
-    loopPlayCurrent();
+    if(!cache[currentIndex]) await generateAudioForCurrent();
+    repeatLoop();
   }else{
     if(repeatAudio) repeatAudio.pause();
   }
 }
 
-async function generateRepeatAudio(i){
+async function generateAudioForCurrent(){
   const voice=document.getElementById('voiceSelect').value;
   try{
     const k=localStorage.getItem('openai_api_key');
     const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
-    body:JSON.stringify({model:"tts-1",voice:voice,input:sentences[i]})});
+    body:JSON.stringify({model:"tts-1",voice:voice,input:sentences[currentIndex]})});
     const a=await r.arrayBuffer(); 
-    cache[i]=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
+    cache[currentIndex]=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
   }catch(e){ console.error(e); alert("Failed to create audio."); }
 }
 
-async function loopPlayCurrent(){
+async function repeatLoop(){
   while(isRepeating){
-    if(!cache[currentIndex]) await generateRepeatAudio(currentIndex);
     repeatAudio=new Audio(cache[currentIndex]);
     await new Promise(resolve=>{
       repeatAudio.onended=resolve;
