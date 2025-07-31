@@ -3,16 +3,38 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Text Tool</title>
+<title>Smart Text Tool (Dark Mode)</title>
 <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap" rel="stylesheet">
 <style>
-  body { margin:0; padding:0; display:flex; flex-direction:column; height:100vh; font-family:'Open Sans',sans-serif; background:#f2f3f5; color:#333; }
-  .toolbar { background:#fff; padding:8px 12px; display:flex; gap:8px; align-items:center; box-shadow:0 1px 4px rgba(0,0,0,0.1); position:sticky; top:0; z-index:10; }
-  .toolbar button, .toolbar select { background:#4285F4; color:white; border:none; padding:6px 10px; cursor:pointer; border-radius:6px; font-size:14px; transition:background 0.2s; }
-  .toolbar button:hover, .toolbar select:hover { background:#3367d6; }
+  :root {
+    --bg: #f2f3f5;
+    --fg: #333;
+    --toolbar-bg: #fff;
+    --button-bg: #4285F4;
+    --button-hover: #3367d6;
+    --textarea-bg: #fafafa;
+    --textarea-color: #555;
+    --preview-bg: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121212;
+      --fg: #e0e0e0;
+      --toolbar-bg: #1e1e1e;
+      --button-bg: #3a75d4;
+      --button-hover: #2a5ca8;
+      --textarea-bg: #1e1e1e;
+      --textarea-color: #ccc;
+      --preview-bg: #1e1e1e;
+    }
+  }
+  body { margin:0; padding:0; display:flex; flex-direction:column; height:100vh; background:var(--bg); color:var(--fg); font-family:'Open Sans',sans-serif; }
+  .toolbar { background:var(--toolbar-bg); padding:8px 12px; display:flex; gap:8px; align-items:center; box-shadow:0 1px 4px rgba(0,0,0,0.1); position:sticky; top:0; z-index:10; }
+  .toolbar button, .toolbar select { background:var(--button-bg); color:white; border:none; padding:6px 10px; cursor:pointer; border-radius:6px; font-size:14px; transition:background 0.2s; }
+  .toolbar button:hover, .toolbar select:hover { background:var(--button-hover); }
   .container { flex:1; display:flex; gap:10px; padding:10px; box-sizing:border-box; }
-  textarea { flex:1; resize:none; font-size:16px; line-height:1.6; padding:12px; background:#fafafa; color:#555; border:1px solid #ccc; border-radius:6px; font-family:'Source Code Pro', monospace; }
-  .preview { flex:1; padding:12px; background:#fff; overflow-y:auto; font-size:20px; line-height:1.8; border:1px solid #ccc; border-radius:6px; font-family:'Book Antiqua', Palatino, serif; }
+  textarea { flex:1; resize:none; font-size:16px; line-height:1.6; padding:12px; background:var(--textarea-bg); color:var(--textarea-color); border:1px solid #ccc; border-radius:6px; font-family:'Source Code Pro', monospace; }
+  .preview { flex:1; padding:12px; background:var(--preview-bg); overflow-y:auto; font-size:20px; line-height:1.8; border:1px solid #ccc; border-radius:6px; font-family:'Book Antiqua', Palatino, serif; }
   .sentence { display:block; margin-bottom:18px; cursor:pointer; padding:2px 4px; border-radius:4px; transition:background 0.2s; }
   .sentence:hover { background:rgba(66,133,244,0.15); }
   .active { background:rgba(66,133,244,0.25); }
@@ -22,8 +44,6 @@
 </head>
 <body>
 <div class="toolbar">
-  <button id="chineseVoiceBtn" onclick="playChineseVoice()">🔊 Chinese voice</button>
-  <button onclick="downloadChineseVoice()">⬇️ Download MP3</button>
   <select id="voiceSelect">
     <option value="alloy" selected>Alloy</option>
     <option value="fable">Fable</option>
@@ -53,7 +73,7 @@
 </div>
 
 <script>
-let sentences=[], cache={}, combinedTextCache={}, chineseVoiceCache=null, chineseVoiceAudio=null, currentIndex=0;
+let sentences=[], cache={}, combinedTextCache={}, currentIndex=0;
 
 document.addEventListener('DOMContentLoaded', async () => {
   await checkApiKey();
@@ -78,14 +98,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     updatePreview();
   });
 
-  // ✅ Ctrl+M merges blank lines inside selection
+  // Ctrl+M merges blank lines inside selection
   t.addEventListener('keydown', function(e){
     if(e.ctrlKey && e.key === 'm'){
       e.preventDefault();
       const start=t.selectionStart, end=t.selectionEnd;
       if(start !== end){
         let selected = t.value.substring(start,end);
-        selected = selected.replace(/\n\s*\n+/g,' '); // remove blank lines
+        selected = selected.replace(/\n\s*\n+/g,' '); 
         t.value = t.value.slice(0,start) + selected + t.value.slice(end);
         t.selectionStart=start;
         t.selectionEnd=start+selected.length;
@@ -122,7 +142,7 @@ function showPlain(text){
   let paras=text.split(/\n\s*\n/).map(p=>p.replace(/\s+/g,' ').trim()).filter(Boolean);
   sentences=paras;
   document.getElementById('preview').innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('');
-  attachClicks(); cache={}; currentIndex=0; highlightCurrent(); chineseVoiceCache=null; chineseVoiceAudio=null;
+  attachClicks(); cache={}; currentIndex=0; highlightCurrent();
 }
 
 async function showCombined(text){
@@ -145,7 +165,7 @@ function displayCombined(txt){
   const paras=txt.split(/\n\s*\n/).map(p=>p.trim()).filter(Boolean);
   sentences=paras;
   document.getElementById('preview').innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('');
-  attachClicks(); cache={}; currentIndex=0; highlightCurrent(); chineseVoiceCache=null; chineseVoiceAudio=null;
+  attachClicks(); cache={}; currentIndex=0; highlightCurrent();
 }
 
 function attachClicks(){ document.querySelectorAll('.sentence').forEach(s=> s.onclick=()=>{ currentIndex=+s.dataset.idx; highlightCurrent(); playSentence(currentIndex); }); }
@@ -162,39 +182,6 @@ async function playSentence(i){
       const a=await r.arrayBuffer(); let u=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
       cache[i]=u; new Audio(u).play();
     }catch(e){ console.error(e); alert("Failed to speak."); }
-  }
-}
-
-async function playChineseVoice(){
-  const btn=document.getElementById('chineseVoiceBtn');
-  if(chineseVoiceAudio){
-    if(!chineseVoiceAudio.paused){ chineseVoiceAudio.pause(); btn.textContent='▶️ Chinese voice'; }
-    else{ chineseVoiceAudio.play(); btn.textContent='⏸ Pause'; }
-    return;
-  }
-  btn.textContent='⏳ Loading...';
-  const text=sentences.join(' ');
-  try{
-    const translation=await callOpenAI(`Translate this text into natural fluent Chinese:\n\n${text}`);
-    const voice=document.getElementById('voiceSelect').value;
-    const k=localStorage.getItem('openai_api_key');
-    const r=await fetch("https://api.openai.com/v1/audio/speech",{method:"POST",headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
-    body:JSON.stringify({model:"tts-1",voice:voice,input:translation})});
-    const a=await r.arrayBuffer(); let u=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
-    chineseVoiceCache=u; chineseVoiceAudio=new Audio(u);
-    chineseVoiceAudio.onended=()=>{ btn.textContent='🔊 Chinese voice'; };
-    chineseVoiceAudio.play(); btn.textContent='⏸ Pause';
-  }catch(e){ console.error(e); alert("Failed to speak in Chinese."); btn.textContent='🔊 Chinese voice'; }
-}
-
-function downloadChineseVoice(){
-  if(chineseVoiceCache){
-    const a=document.createElement('a');
-    a.href=chineseVoiceCache;
-    a.download='chinese_voice.mp3';
-    a.click();
-  }else{
-    alert("Please generate the Chinese voice first by clicking 'Chinese voice'.");
   }
 }
 
