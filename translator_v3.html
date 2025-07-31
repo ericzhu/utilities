@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>OpenAI Text Formatter (Extended)</title>
+<title>OpenAI Text Formatter (Smarter Split)</title>
 <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap" rel="stylesheet">
 <style>
   body { margin:0; padding:0; display:flex; flex-direction:column; height:100vh; font-family:'Lato',sans-serif; }
@@ -41,6 +41,10 @@
     <div id="preview" class="preview"><div class="spinner" id="spinner"></div></div>
   </div>
 <script>
+const ABBREVIATIONS = [
+  'Mr.', 'Mrs.', 'Ms.', 'Dr.', 'Prof.', 'Sr.', 'Jr.', 'St.', 'vs.', 'etc.', 'e.g.', 'i.e.', 'U.S.A.'
+];
+
 let currentIndex=0; let sentences=[]; let cache={}; let combinedTextCache={};
 
 document.addEventListener('DOMContentLoaded',async()=>{
@@ -65,8 +69,28 @@ function toggleTheme(){
 }
 function formatTextarea(){
   const t=document.getElementById('inputText'); let txt=t.value.trim(); if(!txt)return;
-  txt=txt.replace(/\s+/g,' '); 
-  let parts=txt.split(/(?<=[.?!。！？])/).map(s=>s.trim()).filter(Boolean);
+
+  txt=txt.replace(/\s+/g,' ');
+
+  // Step 1: replace dots in known abbreviations
+  ABBREVIATIONS.forEach(abbr=>{
+    const safe=abbr.replace('.', '<<DOT>>');
+    const regex=new RegExp(abbr.replace('.','\\.'), 'g');
+    txt=txt.replace(regex, safe);
+  });
+
+  // Step 2: split on period followed by space or newline
+  let parts=txt.split(/(?<=\.)[\s\r\n]+/);
+
+  // Step 3: restore dots
+  parts=parts.map(s=>{
+    ABBREVIATIONS.forEach(abbr=>{
+      const safe=abbr.replace('.', '<<DOT>>');
+      s=s.replace(new RegExp(safe,'g'), abbr);
+    });
+    return s.replace(/\s+/g,' ').trim();
+  }).filter(Boolean);
+
   t.value=parts.join('\n\n');
   updatePreview();
 }
