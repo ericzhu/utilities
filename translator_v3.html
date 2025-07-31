@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Better Text Preview & TTS</title>
-<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Open+Sans:wght@400;600&display=swap" rel="stylesheet">
+<title>Text Preview & TTS – Smart Paste</title>
+<link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&family=Open+Sans:wght@400;600&family=Source+Code+Pro:wght@400;600&display=swap" rel="stylesheet">
 <style>
   body { margin:0; padding:0; display:flex; flex-direction:column; height:100vh; font-family:'Open Sans',sans-serif; background:#f2f3f5; color:#333; transition:background 0.3s, color 0.3s; }
   .toolbar { background:#ffffff; padding:8px 12px; display:flex; gap:8px; align-items:center; box-shadow:0 1px 4px rgba(0,0,0,0.1); position:sticky; top:0; z-index:10; }
@@ -52,6 +52,14 @@ document.addEventListener('DOMContentLoaded', async () => {
   const saved=localStorage.getItem('saved_text');
   if(saved) { t.value=saved; updatePreview(); }
   t.addEventListener('input',()=>{ localStorage.setItem('saved_text',t.value); updatePreview(); });
+  t.addEventListener('paste', function(e){
+    e.preventDefault();
+    let clipboardData = (e.clipboardData || window.clipboardData).getData('text');
+    let formatted = formatTextSmartly(clipboardData);
+    this.value = formatted;
+    localStorage.setItem('saved_text', formatted);
+    updatePreview();
+  });
   if(localStorage.getItem('theme')==='dark') document.body.classList.add('dark');
   const f=localStorage.getItem('preview_font_size'); if(f) changeFontSize(f);
 });
@@ -73,11 +81,24 @@ async function updatePreview(){
   else if(mode==='combined') await showCombined(text);
 }
 
+function formatTextSmartly(text) {
+  let tmp = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  // Protect abbreviations
+  ABBREVIATIONS.forEach(a => { tmp = tmp.replace(new RegExp(a.replace('.','\\.'),'g'), a.replace('.','<<DOT>>')); });
+  // Split by period followed by space/newline/end, not after abbreviations
+  let parts = tmp.split(/(?<=\.)[\s\n]+/);
+  parts = parts.map(s => {
+    ABBREVIATIONS.forEach(a=>{ s=s.replace(new RegExp(a.replace('.','<<DOT>>'),'g'),a); });
+    return s.replace(/\s+/g,' ').trim();
+  }).filter(Boolean);
+  return parts.join('\n\n'); // blank line between sentences/paragraphs
+}
+
 function showPlain(text){
-  let tmp=text.replace(/\r\n/g,'\n').replace(/\r/g,'\n');
-  ABBREVIATIONS.forEach(a=>{ tmp=tmp.replace(new RegExp(a.replace('.','\\.'),'g'),a.replace('.','<<DOT>>')); });
-  let parts=tmp.split(/(?<=\.)[\s\n]+/);
-  parts=parts.map(s=>{
+  let tmp = text;
+  ABBREVIATIONS.forEach(a => { tmp = tmp.replace(new RegExp(a.replace('.','\\.'),'g'), a.replace('.','<<DOT>>')); });
+  let parts = tmp.split(/(?<=\.)[\s\n]+/);
+  parts = parts.map(s => {
     ABBREVIATIONS.forEach(a=>{ s=s.replace(new RegExp(a.replace('.','<<DOT>>'),'g'),a); });
     return s.replace(/\s+/g,' ').trim();
   }).filter(Boolean);
