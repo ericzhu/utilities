@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Smart Text Tool (Better Dropdown Colors)</title>
+<title>Smart Text Tool (Fix Dropdown Text Color)</title>
 <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro&display=swap" rel="stylesheet">
 <style>
   :root {
@@ -64,14 +64,13 @@
   .toolbar button:hover, .dropdown-wrapper:hover { background: var(--button-hover); }
   .dropdown-wrapper select { 
     background: transparent; 
-    color: black; /* use default color so dropdown is visible */
+    color: white; /* keep text beside icon white */
     border: none; 
     font-size: 14px; 
     margin-left: 4px;
     cursor: pointer;
     appearance: none; 
   }
-  body.dark .dropdown-wrapper select { color: white; }
   .toolbar-spacer { flex: 1; }
   .container { 
     flex: 1; 
