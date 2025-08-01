@@ -85,7 +85,7 @@ textarea {
 </div>
 
 <script>
-let sentences=[], cache={}, currentIndex=null, isRepeating=false, repeatController=null, allTextAudio=null;
+let sentences=[], cache={}, currentIndex=null, repeatController=null, isRepeating=false, allTextAudio=null;
 
 document.addEventListener('DOMContentLoaded',()=>{
   checkApiKey(); initTheme();
@@ -122,7 +122,7 @@ function updatePreview(){
   if(!text){ document.getElementById('preview').innerHTML=''; return;}
   let paras = text
     .split(/\n\s*\n/)
-    .map(p => p.replace(/\s*\n\s*/g, ' ').trim()) // remove internal line breaks
+    .map(p => p.replace(/\s*\n\s*/g, ' ').trim())
     .filter(Boolean);
   sentences=paras;
   document.getElementById('preview').innerHTML=paras.map((p,i)=>`<span class="sentence" data-idx="${i}">${p}</span>`).join('');
@@ -144,21 +144,22 @@ function highlightActive(idx,blink=false){
     active.scrollIntoView({behavior:'smooth',block:'center'});
   }
 }
-
 function removeActiveHighlight(){
   document.querySelectorAll('.sentence').forEach(s=>s.classList.remove('active','blink'));
 }
 
 async function toggleRepeat(){
-  isRepeating=!isRepeating;
-  document.getElementById('repeatBtn').classList.toggle('active',isRepeating);
+  const btn=document.getElementById('repeatBtn');
   if(isRepeating){
-    if(currentIndex==null) currentIndex=0;
-    highlightActive(currentIndex,true);
-    repeatController = repeatLoop(currentIndex);
-  } else {
-    if(repeatController) repeatController.cancel = true;
+    isRepeating=false;
+    if(repeatController) repeatController.cancel=true;
+    btn.innerText='🔁 Repeat';
     removeActiveHighlight();
+  } else {
+    isRepeating=true;
+    if(currentIndex==null) currentIndex=0;
+    btn.innerText='🔁✨ Repeating';
+    repeatController = await repeatLoop(currentIndex);
   }
 }
 
@@ -185,7 +186,7 @@ async function repeatLoop(idx){
       audio.play();
     });
     if(controller.cancel) break;
-    await new Promise(r=>setTimeout(r,5000)); // wait after playback ends
+    await new Promise(r=>setTimeout(r,5000));
   }
   return controller;
 }
@@ -227,7 +228,15 @@ function exportText(){
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='text.txt'; a.click();
 }
 
-function clearCache(){ cache={}; allTextAudio=null; alert("Cache cleared."); }
+function clearCache(){
+  cache={}; allTextAudio=null;
+  localStorage.removeItem('saved_text');
+  document.getElementById('inputText').value='';
+  document.getElementById('preview').innerHTML='';
+  sentences=[]; currentIndex=null;
+  removeActiveHighlight();
+  alert("Cache and text cleared (API key kept).");
+}
 
 function translateText(){
   const lang=document.getElementById('langSelect').value;
