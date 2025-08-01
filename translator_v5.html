@@ -68,15 +68,15 @@ textarea {
 <body>
 <div class="toolbar">
   <button onclick="readAll()">📢 Read All</button>
-  <button onclick="translateText()">🌍 Translate</button>
-  <button onclick="toggleRepeat()" id="repeatBtn">🔁 Repeat</button>
   <button onclick="downloadMp3()">⬇️ Download MP3</button>
+  <button onclick="toggleRepeat()" id="repeatBtn">🔁 Repeat</button>
+  <button onclick="translateText()">🌍 Translate</button>
+  <div class="toolbar-spacer"></div>
+  <button onclick="toggleEditor()">📝 Toggle Editor</button>
+  <button onclick="clearCache()">🧹 Clear Cache</button>
   <button onclick="exportText()">📝 Export Text</button>
   <button onclick="smartFormat()">✨ Smart Formatting</button>
   <div id="spinner" class="spinner"></div>
-  <button onclick="toggleEditor()">📝 Toggle Editor</button>
-  <button onclick="clearCache()">🧹 Clear Cache</button>
-  <div class="toolbar-spacer"></div>
   <select id="voiceSelect">
     <option value="alloy">Alloy</option>
     <option value="fable">Fable</option>
