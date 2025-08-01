@@ -36,6 +36,11 @@ body {
 .toolbar button:hover, .toolbar select:hover { background: var(--button-hover);}
 .toolbar button:active { transform: scale(0.97);}
 .toolbar-spacer { flex:1; }
+.spinner {
+  display:none; margin-left:6px; width:16px; height:16px; border:2px solid white;
+  border-top:2px solid transparent; border-radius:50%; animation: spin 1s linear infinite;
+}
+@keyframes spin {100%{transform:rotate(360deg);}}
 .container {
   flex:1; display: flex; gap:12px; margin-top:10px;
 }
@@ -57,6 +62,7 @@ textarea {
 .active { background: rgba(66,133,244,0.25);}
 .blink { animation: blinkAnim 1s infinite;}
 @keyframes blinkAnim {50%{opacity:0.4;}}
+.hidden { display:none;}
 </style>
 </head>
 <body>
@@ -67,6 +73,8 @@ textarea {
   <button onclick="downloadMp3()">⬇️ Download MP3</button>
   <button onclick="exportText()">📝 Export Text</button>
   <button onclick="smartFormat()">✨ Smart Formatting</button>
+  <div id="spinner" class="spinner"></div>
+  <button onclick="toggleEditor()">📝 Toggle Editor</button>
   <button onclick="clearCache()">🧹 Clear Cache</button>
   <div class="toolbar-spacer"></div>
   <select id="voiceSelect">
@@ -91,6 +99,7 @@ textarea {
 
 <script>
 let sentences=[], cache={}, currentIndex=null, repeatController=null, isRepeating=false, allTextAudio=null;
+let editorVisible=true;
 
 document.addEventListener('DOMContentLoaded',()=>{
   checkApiKey(); initTheme();
@@ -144,6 +153,7 @@ async function smartFormat(){
   const k=localStorage.getItem('openai_api_key');
   const t=document.getElementById('inputText').value;
   if(!t.trim()){ alert("Please enter text first."); return;}
+  document.getElementById('spinner').style.display='inline-block';
   try{
     const r=await fetch("https://api.openai.com/v1/chat/completions",{
       method:"POST", headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
@@ -163,6 +173,12 @@ async function smartFormat(){
       alert("Formatting failed.");
     }
   } catch(e){ alert("Error: "+e);}
+  document.getElementById('spinner').style.display='none';
+}
+
+function toggleEditor(){
+  editorVisible=!editorVisible;
+  document.getElementById('inputText').classList.toggle('hidden',!editorVisible);
 }
 
 function highlightActive(idx,blink=false){
