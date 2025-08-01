@@ -66,6 +66,7 @@ textarea {
   <button onclick="toggleRepeat()" id="repeatBtn">🔁 Repeat</button>
   <button onclick="downloadMp3()">⬇️ Download MP3</button>
   <button onclick="exportText()">📝 Export Text</button>
+  <button onclick="smartFormat()">✨ Smart Formatting</button>
   <button onclick="clearCache()">🧹 Clear Cache</button>
   <div class="toolbar-spacer"></div>
   <select id="voiceSelect">
@@ -139,6 +140,31 @@ function updatePreview(){
   });
 }
 
+async function smartFormat(){
+  const k=localStorage.getItem('openai_api_key');
+  const t=document.getElementById('inputText').value;
+  if(!t.trim()){ alert("Please enter text first."); return;}
+  try{
+    const r=await fetch("https://api.openai.com/v1/chat/completions",{
+      method:"POST", headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
+      body:JSON.stringify({
+        model:"gpt-4o",
+        messages:[{role:"system",content:"You are a helpful editor."},
+        {role:"user",content:"Please format the following text into clear, properly separated paragraphs, suitable for reading:" + t}]
+      })
+    });
+    const d=await r.json();
+    if(d.choices&&d.choices[0]){
+      let newText=d.choices[0].message.content.trim();
+      document.getElementById('inputText').value=newText;
+      localStorage.setItem('saved_text',newText);
+      updatePreview();
+    } else {
+      alert("Formatting failed.");
+    }
+  } catch(e){ alert("Error: "+e);}
+}
+
 function highlightActive(idx,blink=false){
   document.querySelectorAll('.sentence').forEach(s=>s.classList.remove('active','blink'));
   let active=document.querySelector(`.sentence[data-idx="${idx}"]`);
@@ -185,10 +211,7 @@ async function repeatLoop(idx, controller){
       audio = new Audio(u);
     }
     highlightActive(idx,true);
-    await new Promise((resolve)=>{
-      audio.onended=resolve;
-      audio.play();
-    });
+    await new Promise((resolve)=>{ audio.onended=resolve; audio.play(); });
     if(controller.cancel) break;
     await new Promise(r=>setTimeout(r,5000));
   }
