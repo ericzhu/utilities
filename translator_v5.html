@@ -113,7 +113,6 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 function smartSplit(text){
-  // smarter splitting, keep common abbreviations
   let abbr = /\b(Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|vs|etc|Fig|Box|No)\.$/;
   return text.split(/(?<=[.?!])\s+(?=[A-Z])/).map(s=>abbr.test(s) ? s : s.trim()).join('\n\n');
 }
@@ -166,9 +165,27 @@ async function toggleRepeat(){
 async function repeatLoop(idx){
   let controller={cancel:false};
   while(!controller.cancel){
-    await playSentence(idx);
+    let audio;
+    if(cache[idx]){
+      audio = new Audio(cache[idx]);
+    } else {
+      const k=localStorage.getItem('openai_api_key');
+      const r=await fetch("https://api.openai.com/v1/audio/speech",{
+        method:"POST",headers:{"Authorization":"Bearer "+k,"Content-Type":"application/json"},
+        body:JSON.stringify({model:"tts-1",voice:document.getElementById('voiceSelect').value,input:sentences[idx]})
+      });
+      const a=await r.arrayBuffer();
+      let u=URL.createObjectURL(new Blob([a],{type:"audio/mpeg"}));
+      cache[idx]=u;
+      audio = new Audio(u);
+    }
     highlightActive(idx,true);
-    await new Promise(r=>setTimeout(r,5000));
+    await new Promise(resolve=>{
+      audio.onended=resolve;
+      audio.play();
+    });
+    if(controller.cancel) break;
+    await new Promise(r=>setTimeout(r,5000)); // wait after playback ends
   }
   return controller;
 }
