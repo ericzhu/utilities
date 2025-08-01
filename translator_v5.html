@@ -69,12 +69,16 @@ textarea {
   <button onclick="clearCache()">🧹 Clear Cache</button>
   <div class="toolbar-spacer"></div>
   <select id="voiceSelect">
-    <option value="alloy">Alloy</option><option value="fable">Fable</option>
-    <option value="onyx" selected>Onyx</option><option value="nova">Nova</option>
+    <option value="alloy">Alloy</option>
+    <option value="fable">Fable</option>
+    <option value="onyx" selected>Onyx</option>
+    <option value="nova">Nova</option>
     <option value="shimmer">Shimmer</option>
   </select>
   <select id="langSelect">
-    <option value="zh-CN" selected>Chinese</option><option value="fr">French</option><option value="en">English</option>
+    <option value="zh-CN" selected>Chinese</option>
+    <option value="fr">French</option>
+    <option value="en">English</option>
   </select>
   <button onclick="toggleTheme()">🌓 Theme</button>
   <button onclick="resetApiKey()">🔑 API</button>
@@ -152,19 +156,19 @@ async function toggleRepeat(){
   const btn=document.getElementById('repeatBtn');
   if(isRepeating){
     isRepeating=false;
-    if(repeatController) repeatController.cancel=true;
+    if(repeatController) repeatController.cancel = true;
     btn.innerText='🔁 Repeat';
     removeActiveHighlight();
   } else {
     isRepeating=true;
-    if(currentIndex==null) currentIndex=0;
     btn.innerText='🔁✨ Repeating';
-    repeatController = await repeatLoop(currentIndex);
+    if(currentIndex==null) currentIndex=0;
+    repeatController={cancel:false};
+    repeatLoop(currentIndex, repeatController);
   }
 }
 
-async function repeatLoop(idx){
-  let controller={cancel:false};
+async function repeatLoop(idx, controller){
   while(!controller.cancel){
     let audio;
     if(cache[idx]){
@@ -181,14 +185,13 @@ async function repeatLoop(idx){
       audio = new Audio(u);
     }
     highlightActive(idx,true);
-    await new Promise(resolve=>{
+    await new Promise((resolve)=>{
       audio.onended=resolve;
       audio.play();
     });
     if(controller.cancel) break;
     await new Promise(r=>setTimeout(r,5000));
   }
-  return controller;
 }
 
 async function playSentence(i){
